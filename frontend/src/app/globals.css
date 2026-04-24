@@ -1,0 +1,320 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  :root {
+    /* --- NYAYA AI CORE PALETTE --- 
+       Balanced for high-contrast, WCAG AAA compliance.
+       Space-separated RGB values allow modern opacity injection via slash syntax. */
+    --bg-base: 5 5 10;         /* #05050A - Deep Void */
+    --primary: 79 70 229;      /* #4F46E5 - Indigo */
+    --accent: 34 211 238;      /* #22D3EE - Cyan */
+    --danger: 239 68 68;       /* #EF4444 - Red */
+    --success: 16 185 129;     /* #10B981 - Emerald */
+    --warning: 245 158 11;     /* #F59E0B - Amber */
+    
+    /* --- SEMANTIC GLASS TOKENS --- */
+    --glass-bg: 15 17 26;      /* #0F111A - Optimized for OLED */
+    --glass-border: 255 255 255;
+    --glass-blur: 24px;
+    
+    /* --- INTERACTION STATE TRACKING --- 
+       Defaults centered; React hydrates movement dynamically */
+    --mouse-x: 50%;
+    --mouse-y: 50%; 
+  }
+
+  body {
+    @apply text-slate-200 antialiased relative font-sans selection:bg-indigo-500/40 selection:text-white;
+    /* tabular-nums prevents horizontal "jitter" when scores or clocks update */
+    font-variant-numeric: tabular-nums;
+    /* Modern dynamic viewport height prevents iOS layout shifting */
+    min-height: 100dvh;
+    background-color: rgb(var(--bg-base));
+    overflow-x: hidden;
+    
+    /* STABILITY FIXES: 
+       1. Prevents horizontal layout jump when scrollbars appear.
+       2. Disables native pull-to-refresh bounce on trackpads/touch screens. */
+    scrollbar-gutter: stable;
+    overscroll-behavior-y: none;
+    
+    /* Paint Smoothing Fixes */
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+  }
+
+  /* ==========================================================================
+     GLOBAL MAC-OS STYLE SCROLLBAR INJECTION
+     ========================================================================== */
+  html::-webkit-scrollbar,
+  body::-webkit-scrollbar,
+  .custom-scrollbar::-webkit-scrollbar { 
+    width: 6px; 
+    height: 6px; 
+  }
+  html::-webkit-scrollbar-track,
+  body::-webkit-scrollbar-track,
+  .custom-scrollbar::-webkit-scrollbar-track { 
+    background: transparent; 
+  }
+  html::-webkit-scrollbar-thumb,
+  body::-webkit-scrollbar-thumb,
+  .custom-scrollbar::-webkit-scrollbar-thumb { 
+    background: rgb(255 255 255 / 0.15); 
+    border-radius: 20px;
+    transition: background-color 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  }
+  html::-webkit-scrollbar-thumb:hover,
+  body::-webkit-scrollbar-thumb:hover,
+  .custom-scrollbar::-webkit-scrollbar-thumb:hover { 
+    background: rgb(var(--accent) / 0.5); 
+    box-shadow: inset 0 0 12px rgb(var(--accent) / 0.4);
+  }
+
+  /* ==========================================================================
+     THE COSMIC INFRASTRUCTURE: MULTI-LAYERED DEPTH & GPU TARGETING
+     ========================================================================== */
+  
+  /* Layer 1: Forensic Noise Texture (Apple-Tier Depth) */
+  body::before {
+    content: '';
+    position: fixed;
+    inset: 0;
+    background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 200 200' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noiseFilter'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.65' numOctaves='3' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noiseFilter)'/%3E%3C/svg%3E");
+    opacity: 0.035;
+    z-index: 50;
+    pointer-events: none;
+    mix-blend-mode: overlay;
+    
+    /* Hardware Acceleration / Composite Layer Isolation 
+       Locked to translate3d to prevent WebKit scrolling bugs on the body tag */
+    transform: translate3d(0, 0, 0); 
+    backface-visibility: hidden;
+    perspective: 1000px;
+    will-change: opacity;
+  }
+
+  /* Layer 2: Primary Neural Mesh Orb (Top-Left Dynamic Glow) */
+  body::after {
+    content: '';
+    position: fixed;
+    top: -15%; left: -10%; width: 70%; height: 70%;
+    /* Standardized slash syntax for robust browser support */
+    background: radial-gradient(circle, rgb(var(--primary) / 0.12) 0%, transparent 75%);
+    z-index: -1; 
+    pointer-events: none;
+    filter: blur(120px);
+    animation: neural-pulse 12s cubic-bezier(0.4, 0, 0.2, 1) infinite alternate;
+    
+    /* Paint Isolation & GPU promotion */
+    will-change: transform, opacity;
+    transform: translate3d(0, 0, 0); 
+  }
+}
+
+@layer components {
+  /* Layer 3: Secondary Accent Orb */
+  .bg-orb-secondary {
+    position: fixed;
+    bottom: -20%; right: -15%; width: 60%; height: 60%;
+    background: radial-gradient(circle, rgb(var(--accent) / 0.08) 0%, transparent 70%);
+    z-index: -1; 
+    pointer-events: none;
+    filter: blur(120px);
+    animation: neural-pulse 15s cubic-bezier(0.4, 0, 0.2, 1) infinite alternate-reverse;
+    
+    will-change: transform, opacity;
+    transform: translate3d(0, 0, 0); 
+  }
+
+  /* ==========================================================================
+     MASTER GLASS DESIGN SYSTEM (STRICT ENTERPRISE GEOMETRY)
+     ========================================================================== */
+  .glass-panel {
+    @apply rounded-2xl relative overflow-hidden;
+    /* Webkit-prefix required for older Safari backdrop-filter stability */
+    -webkit-backdrop-filter: blur(var(--glass-blur));
+    backdrop-filter: blur(var(--glass-blur));
+    background: rgb(var(--glass-bg) / 0.55);
+    border: 1px solid rgb(var(--glass-border) / 0.06);
+    
+    /* Optimized transition: Targeting explicit properties avoids CPU repaints */
+    transition: border-color 0.4s cubic-bezier(0.4, 0, 0.2, 1), 
+                box-shadow 0.4s cubic-bezier(0.4, 0, 0.2, 1), 
+                transform 0.4s cubic-bezier(0.4, 0, 0.2, 1);
+    box-shadow: 
+      inset 0 1px 1px rgb(255 255 255 / 0.04),
+      0 20px 40px -12px rgba(0, 0, 0, 0.5);
+  }
+
+  .glass-panel:hover {
+    border-color: rgb(var(--glass-border) / 0.12);
+    box-shadow: 
+      inset 0 1px 2px rgb(255 255 255 / 0.08),
+      0 30px 60px -15px rgba(0, 0, 0, 0.7);
+  }
+
+  /* Interactive Spotlight (Tied to React Mouse Tracking) */
+  .mouse-glow {
+    position: absolute;
+    inset: 0;
+    background: radial-gradient(
+      600px circle at var(--mouse-x) var(--mouse-y),
+      rgb(var(--primary) / 0.06),
+      transparent 80%
+    );
+    z-index: 0;
+    pointer-events: none;
+    opacity: 0;
+    transition: opacity 0.5s cubic-bezier(0.4, 0, 0.2, 1);
+    will-change: background;
+  }
+  
+  .glass-panel:hover .mouse-glow {
+    opacity: 1;
+  }
+
+  /* ==========================================================================
+     FORENSIC ANIMATION ENGINE (GPU ISOLATED)
+     ========================================================================== */
+  
+  /* The Scanning Laser Line - Razor sharp gradient */
+  .scan-line {
+    @apply pointer-events-none absolute left-0 w-full z-50;
+    height: 3px;
+    background: linear-gradient(90deg, 
+      transparent 0%, 
+      rgb(var(--accent) / 0) 15%, 
+      rgb(var(--accent) / 0.8) 50%, 
+      rgb(var(--accent) / 0) 85%, 
+      transparent 100%
+    );
+    box-shadow: 0 0 25px 2px rgb(var(--accent) / 0.5);
+    animation: scan-sequence 2.8s cubic-bezier(0.65, 0, 0.35, 1) infinite;
+    will-change: top, opacity, transform;
+  }
+
+  /* Regulatory Status Badges */
+  .passport-badge {
+    @apply px-3 py-1 bg-white/5 border border-white/10 rounded-full text-[10px] font-black uppercase tracking-[0.2em] text-slate-400 transition-all duration-300 cursor-default;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.2);
+  }
+
+  .passport-badge:hover {
+    @apply border-indigo-500/40 text-white bg-indigo-500/10;
+    text-shadow: 0 0 12px rgb(var(--primary) / 0.6);
+  }
+}
+
+@layer utilities {
+  /* --- PERFORMANCE & HARDWARE ACCELERATION --- */
+  .gpu-accelerated {
+    transform: translate3d(0, 0, 0);
+    backface-visibility: hidden;
+    perspective: 1000px;
+    will-change: transform, opacity, filter;
+  }
+  
+  /* --- TYPOGRAPHY & GLOWS --- */
+  .glow-text-primary { text-shadow: 0 0 25px rgb(var(--primary) / 0.6); }
+  .glow-text-accent { text-shadow: 0 0 25px rgb(var(--accent) / 0.6); }
+  .glow-text-danger { text-shadow: 0 0 25px rgb(var(--danger) / 0.6); }
+  .glow-text-success { text-shadow: 0 0 25px rgb(var(--success) / 0.6); }
+
+  /* Smooth Custom Scrollbar (Firefox + Webkit Parity) */
+  .custom-scrollbar {
+    scrollbar-width: thin;
+    scrollbar-color: rgb(var(--primary) / 0.2) transparent;
+    -ms-overflow-style: none;
+  }
+
+  /* --- ADVANCED KEYFRAMES --- */
+  @keyframes scan-sequence {
+    0% { top: -5%; opacity: 0; transform: scaleX(0.85); }
+    15% { opacity: 1; transform: scaleX(1); }
+    85% { opacity: 1; transform: scaleX(1); }
+    100% { top: 105%; opacity: 0; transform: scaleX(0.85); }
+  }
+
+  @keyframes neural-pulse {
+    0% { transform: scale(1) translate3d(0, 0, 0); opacity: 0.5; }
+    /* GPU Rasterization Fix: Replaced percentages with absolute pixels for rendering stability */
+    50% { transform: scale(1.08) translate3d(10px, 20px, 0); opacity: 0.8; }
+    100% { transform: scale(1) translate3d(0, 0, 0); opacity: 0.5; }
+  }
+
+  /* Cyber Glitch Effect (For Critical Engine Failures) */
+  @keyframes glitch-hover {
+    0% { transform: translate3d(0, 0, 0); opacity: 1; }
+    20% { transform: translate3d(-3px, 2px, 0); opacity: 0.8; }
+    40% { transform: translate3d(-3px, -2px, 0); opacity: 0.9; }
+    60% { transform: translate3d(3px, 2px, 0); opacity: 0.8; }
+    80% { transform: translate3d(3px, -2px, 0); opacity: 0.9; }
+    100% { transform: translate3d(0, 0, 0); opacity: 1; }
+  }
+
+  .animate-glitch:hover {
+    animation: glitch-hover 0.25s cubic-bezier(.25,.46,.45,.94) both infinite;
+  }
+
+  /* Data-Stream Shimmer (Used for empty loading states) */
+  .shimmer {
+    background: linear-gradient(
+      90deg,
+      rgba(255, 255, 255, 0) 0%,
+      rgba(255, 255, 255, 0.05) 50%,
+      rgba(255, 255, 255, 0) 100%
+    );
+    background-size: 200% 100%;
+    animation: shimmer-move 2.5s infinite linear;
+  }
+
+  @keyframes shimmer-move {
+    0% { background-position: -200% 0; }
+    100% { background-position: 200% 0; }
+  }
+}
+
+/* ==========================================================================
+   ACCESSIBILITY & EXPORT OVERRIDES
+   ========================================================================== */
+
+/* Respect OS-Level User Preferences for Motion */
+@media (prefers-reduced-motion: reduce) {
+  *, ::before, ::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
+}
+
+/* Print Styles for Flawless PDF Compliance Reports */
+@media print {
+  body {
+    background-color: #05050A !important;
+    color: #FFFFFF !important;
+    -webkit-print-color-adjust: exact;
+    print-color-adjust: exact;
+  }
+  
+  /* CRITICAL FIX: Disable ambient effects for clean print resolution */
+  body::before, body::after, .bg-orb-secondary, .mouse-glow {
+    display: none !important;
+  }
+
+  .glass-panel {
+    background: #0f111a !important;
+    border: 1px solid #333 !important;
+    box-shadow: none !important;
+    break-inside: avoid;
+    backdrop-filter: none !important;
+  }
+  
+  /* Hide non-essential interactive elements during PDF generation */
+  button, select, .scan-line, .custom-scrollbar {
+    display: none !important;
+  }
+}
