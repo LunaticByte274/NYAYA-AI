@@ -1,4 +1,4 @@
-# --- CORE FRAMEWORK (STABLE) ---
+# --- CORE FRAMEWORK ---
 fastapi==0.110.0
 uvicorn[standard]==0.27.1
 pydantic==2.6.1
@@ -6,8 +6,8 @@ python-multipart==0.0.9
 python-dotenv==1.0.1
 slowapi==0.1.9
 
-# --- AI & GOOGLE ECOSYSTEM ---
-google-generativeai==0.4.1
+# --- MODERN GOOGLE AI SDK (Matches your code) ---
+google-genai==0.3.0
 tenacity==8.2.3
 
 # --- DATA SCIENCE ---
@@ -18,5 +18,5 @@ numpy==1.26.4
 httpx==0.26.0
 beautifulsoup4==4.12.3
 
-# --- PRODUCTION TESTING ---
+# --- TESTING ---
 pytest==8.0.0
