@@ -18,6 +18,7 @@
  * 9. Strict error handling and memory-safe URL blob revocation for SMOTE downloads.
  * 10. Explicit DevTools Binding: Added displayName for precise profiling.
  * 11. Enterprise JSDoc Annotations: Self-documenting pipeline handlers.
+ * 12. 🚨 FINAL POLISH: Eliminated nested ternaries, negated conditions, and unused imports.
  * ==========================================================================
  */
 
@@ -26,7 +27,6 @@ import {
   ShieldCheck, 
   BarChart3, 
   Database, 
-  Calculator, 
   Zap, 
   Download,
   AlertTriangle,
@@ -35,7 +35,8 @@ import {
   CheckCircle2,
   Clock,
   RefreshCcw,
-  Binary
+  Binary,
+  Activity 
 } from "lucide-react";
 
 // --- CORE UI COMPONENTS ---
@@ -43,7 +44,7 @@ import { DragDropZone } from "@/components/dashboard/DragDropZone";
 import { cn } from "@/lib/utils";
 
 // --- ENVIRONMENT ROUTING ---
-const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || "http://127.0.0.1:8000";
+const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || "https://nyaya-ai-tqej.onrender.com"; 
 
 // --- STRICT TYPING CONTRACTS ---
 /**
@@ -88,10 +89,10 @@ export default function DatasetAuditor() {
 
   // Configuration (Enterprise defaults optimized for Social Justice Analytics)
   const [config, setConfig] = useState<Record<string, string>>({
-    protected_col: "Gender",
-    privileged_class: "Male",
-    decision_col: "Loan_Approved",
-    positive_outcome: "Yes"
+    protected_col: "GENDER",
+    privileged_class: "MALE",
+    decision_col: "LOAN_APPROVED",
+    positive_outcome: "YES"
   });
 
   const logEndRef = useRef<HTMLDivElement>(null);
@@ -216,14 +217,14 @@ export default function DatasetAuditor() {
 
       // Securely create and revoke Object URL to prevent browser memory leaks
       const blob = await res.blob();
-      const url = window.URL.createObjectURL(blob);
+      const url = globalThis.URL.createObjectURL(blob);
       const link = document.createElement('a');
       link.href = url;
       link.setAttribute('download', `NYAYA_BALANCED_${file.name}`);
       document.body.appendChild(link);
       link.click();
       link.remove();
-      window.URL.revokeObjectURL(url); // Clean up memory reference
+      globalThis.URL.revokeObjectURL(url); // Clean up memory reference
       
       setStatus("success");
     } catch (err: unknown) {
@@ -232,6 +233,25 @@ export default function DatasetAuditor() {
       setStatus("error");
     }
   }, [file, config, metrics]);
+
+  // --- LINTER FIX: Extracted Styling Helpers to Remove Nested Ternaries ---
+  const getGlowStyle = () => {
+    if (!metrics) return "bg-indigo-500/10 opacity-20";
+    if (metrics.status === "Fair") return "bg-emerald-500/20 opacity-40 group-hover:opacity-100";
+    return "bg-red-500/20 opacity-40 group-hover:opacity-100";
+  };
+
+  const getTextStyle = () => {
+    if (!metrics) return "text-slate-800";
+    if (metrics.status === "Fair") return "text-emerald-400";
+    return "text-red-500";
+  };
+
+  const getBadgeStyle = () => {
+    if (!metrics) return "text-slate-700 border-white/5 bg-white/5";
+    if (metrics.status === "Fair") return "text-emerald-400 border-emerald-500/20 bg-emerald-500/10";
+    return "text-red-400 border-red-500/20 bg-red-500/10 animate-pulse";
+  };
 
   // Prevent SSR rendering to sync initial frame exactly with client frame
   if (!mounted) return <div className="h-full bg-transparent" aria-hidden="true" />;
@@ -282,20 +302,17 @@ export default function DatasetAuditor() {
         <section className="lg:col-span-5 flex flex-col gap-6 min-h-0 w-full" aria-labelledby="ingestion-title">
           <h2 id="ingestion-title" className="sr-only">Data Ingestion and Configuration</h2>
           
-          {/* CRITICAL FIX: Changed overflow-hidden to overflow-y-auto to stop the button from clipping */}
           <div className="rounded-[24px] md:rounded-[32px] border border-white/10 bg-black/40 backdrop-blur-xl p-5 md:p-8 flex flex-col h-full shadow-2xl relative overflow-y-auto custom-scrollbar transition-all hover:border-white/20 transform-gpu">
             <div className="absolute top-0 right-0 p-5 md:p-8 opacity-5 pointer-events-none transform-gpu" aria-hidden="true">
               <Database className="w-32 h-32 md:w-40 md:h-40 text-indigo-500" />
             </div>
 
-            {/* CRITICAL FIX: Replaced massive space-y-8 with tighter gap-4 md:gap-5 */}
             <div className="relative z-10 flex flex-col gap-4 md:gap-5 flex-1 min-h-0 w-full">
               <div className="flex items-center gap-3 border-b border-white/5 pb-3 md:pb-4 shrink-0">
                 <Binary className="w-5 h-5 text-indigo-400" aria-hidden="true" />
                 <h3 className="text-[10px] md:text-[11px] font-black uppercase tracking-[0.3em] text-slate-500">Pipeline Ingestion</h3>
               </div>
 
-              {/* DragDropZone inherits its bounds safely */}
               <div className="shrink-0 w-full">
                 <DragDropZone onFileDrop={(f) => setFile(f)} currentFile={file} accept=".csv" />
               </div>
@@ -303,7 +320,7 @@ export default function DatasetAuditor() {
               <div className="flex-1 overflow-y-auto custom-scrollbar pr-2 min-h-0 w-full">
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 md:gap-5 pb-2">
                   {Object.keys(config).map((key) => (
-                    <div key={key} className="space-y-2">
+                    <div key={`config-input-${key}`} className="space-y-2">
                       <label className="block text-[9px] md:text-[10px] font-black text-slate-500 uppercase tracking-widest leading-none">
                         {key.replace("_", " ")}
                       </label>
@@ -350,36 +367,53 @@ export default function DatasetAuditor() {
           
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6 lg:gap-8 shrink-0 w-full">
             
-            {/* Multi-State Score Module */}
-            <div className="rounded-[24px] md:rounded-[32px] border border-white/10 bg-black/40 p-6 md:p-8 flex flex-col items-center justify-center relative min-h-[220px] md:min-h-[280px] shadow-2xl overflow-hidden group shrink-0 transform-gpu">
-              <div className="absolute top-6 left-6 md:top-8 md:left-8 flex items-center gap-3 text-slate-600 z-10">
-                <Calculator className="w-4 h-4" aria-hidden="true" />
-                <span className="text-[9px] md:text-[10px] font-black uppercase tracking-[0.3em]">Impact Ratio</span>
-              </div>
+            {/* LINTER FIX: Perfectly centered Flex-Col Impact Ratio Card to stop clipping */}
+            <div className="rounded-[32px] border border-white/10 bg-black/40 p-8 flex flex-col h-full min-h-[300px] relative overflow-hidden group shadow-2xl transition-all hover:border-white/20 transform-gpu">
               
-              {/* Typographic Truncation Shield applied to ensure bounds stability */}
-              <div className="relative mt-8 min-w-0 z-10 w-full flex justify-center">
-                {metrics && metrics.status === "Biased" && <div className="absolute inset-0 bg-red-600/10 blur-[80px] rounded-full animate-pulse transform-gpu" aria-hidden="true" />}
-                <span className={cn(
-                  "text-[clamp(4rem,7vw,8rem)] font-black tracking-tighter italic leading-none transition-colors duration-1000 truncate tabular-nums max-w-full block",
-                  !metrics ? 'text-slate-800' : metrics.status === 'Biased' ? 'text-red-500 glow-text-danger' : 'text-emerald-500 glow-text-success'
-                )}>
-                  {metrics ? metrics.disparate_impact_ratio.toFixed(2) : "0.00"}
+              {/* Header Area */}
+              <div className="flex items-center gap-3 shrink-0 mb-2">
+                <Activity className="w-4 h-4 text-slate-500" aria-hidden="true" />
+                <span className="text-[10px] font-black text-slate-500 uppercase tracking-[0.2em]">
+                  Forensic Impact Ratio
                 </span>
               </div>
 
-              <div className={cn(
-                "mt-6 md:mt-8 px-6 py-2 md:py-2.5 rounded-full text-[9px] md:text-[10px] font-black uppercase tracking-[0.3em] border flex items-center gap-2 transition-colors duration-1000 whitespace-nowrap z-10",
-                !metrics ? "text-slate-700 border-white/5 bg-white/5" :
-                metrics.status === "Fair" ? "text-emerald-400 border-emerald-500/20 bg-emerald-500/10" : "text-red-400 border-red-500/20 bg-red-500/10"
-              )}>
-                {metrics && metrics.status === "Fair" ? <CheckCircle2 className="w-3.5 h-3.5" aria-hidden="true" /> : <AlertTriangle className="w-3.5 h-3.5" aria-hidden="true" />}
-                {metrics ? metrics.status : "Idle"}
+              {/* Central Content Area (Fixes text bounds/centering) */}
+              <div className="flex-1 flex flex-col items-center justify-center gap-6 py-4 w-full">
+                <div className="relative flex justify-center w-full">
+                   <div className={cn(
+                     "absolute inset-0 blur-[60px] rounded-full transition-opacity duration-1000 transform-gpu",
+                     getGlowStyle()
+                   )} aria-hidden="true" />
+                   
+                   <span className={cn(
+                     "text-[clamp(5rem,8vw,120px)] font-black italic tracking-tighter leading-none tabular-nums relative z-10 transition-colors duration-1000 drop-shadow-2xl text-center",
+                     getTextStyle()
+                   )}>
+                     {metrics ? metrics.disparate_impact_ratio.toFixed(2) : "0.00"}
+                   </span>
+                </div>
+
+                <div className={cn(
+                  "flex items-center gap-2 px-5 py-2 border rounded-full relative z-10 transition-all duration-700 whitespace-nowrap",
+                  getBadgeStyle()
+                )}>
+                  {metrics && metrics.status === "Fair" ? <CheckCircle2 className="w-3.5 h-3.5" aria-hidden="true" /> : <AlertTriangle className="w-3.5 h-3.5" aria-hidden="true" />}
+                  <span className="text-[10px] font-black uppercase tracking-[0.2em]">
+                    {metrics ? metrics.status : "Idle"}
+                  </span>
+                </div>
+              </div>
+
+              {/* Footer Area */}
+              <div className="pt-4 border-t border-white/5 flex justify-between items-center opacity-30 mt-auto shrink-0">
+                 <span className="text-[8px] font-mono uppercase tracking-widest text-slate-500">Neural Core v2.5</span>
+                 <span className="text-[8px] font-mono uppercase tracking-widest text-slate-500">EEOC Logic Applied</span>
               </div>
             </div>
 
             {/* Neural Execution Terminal */}
-            <div className="rounded-[24px] md:rounded-[32px] border border-white/10 bg-[#020205] p-6 md:p-8 flex flex-col shadow-[inset_0_0_50px_rgba(0,0,0,0.8)] relative min-h-[220px] md:min-h-[280px] shrink-0 transform-gpu">
+            <div className="rounded-[24px] md:rounded-[32px] border border-white/10 bg-[#020205] p-6 md:p-8 flex flex-col shadow-[inset_0_0_50px_rgba(0,0,0,0.8)] relative min-h-[300px] shrink-0 transform-gpu">
               <div className="flex items-center justify-between mb-6 shrink-0 z-10">
                  <h3 className="text-[9px] md:text-[10px] font-black text-slate-500 uppercase tracking-[0.3em] flex items-center gap-3">
                    <TerminalSquare className="w-4 h-4 text-indigo-400" aria-hidden="true" /> Pipeline Console
@@ -391,7 +425,7 @@ export default function DatasetAuditor() {
               </div>
               <div className="flex-1 font-mono text-[9.5px] md:text-[10.5px] leading-relaxed space-y-3 overflow-y-auto custom-scrollbar pr-2 min-h-0 z-10" aria-live="polite">
                 {neuralLog.map((log, i) => (
-                  <div key={i} className="text-indigo-400 opacity-90 animate-in fade-in slide-in-from-left-4 break-words tabular-nums flex gap-2">
+                  <div key={`log-entry-${i}`} className="text-indigo-400 opacity-90 animate-in fade-in slide-in-from-left-4 break-words tabular-nums flex gap-2">
                     <span className="text-slate-600 shrink-0" aria-hidden="true">[{new Date().toLocaleTimeString([], {hour12: false, hour:'2-digit', minute:'2-digit', second:'2-digit'})}]</span> 
                     <span className="flex-1">{log}</span>
                   </div>
@@ -408,7 +442,7 @@ export default function DatasetAuditor() {
           </div>
           
           {/* Statistical Ratiocination Card */}
-          <div className="rounded-[24px] md:rounded-[32px] border border-white/10 bg-black/40 p-6 md:p-8 lg:p-10 flex flex-col min-h-[300px] shadow-2xl relative overflow-hidden group/proof flex-1 min-h-0 transform-gpu">
+          <div className="rounded-[24px] md:rounded-[32px] border border-white/10 bg-black/40 p-6 md:p-8 lg:p-10 flex flex-col min-h-[300px] shadow-2xl relative overflow-hidden group/proof flex-1 transform-gpu">
             <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-8 md:mb-10 border-b border-white/5 pb-6 shrink-0 relative z-10">
                <div className="flex items-center gap-3 md:gap-4">
                  <Cpu className="w-6 h-6 md:w-8 md:h-8 text-indigo-400" aria-hidden="true" />
@@ -442,7 +476,7 @@ export default function DatasetAuditor() {
                         </div>
                      </div>
                      
-                     {metrics.status === "Biased" && (
+                     {(metrics.status === "Biased" || metrics.status === "Critical Bias") && (
                         <div className="p-6 md:p-8 bg-indigo-600/5 border border-indigo-600/20 rounded-[20px] md:rounded-[28px] flex flex-col hover:bg-indigo-600/10 transition-colors duration-500">
                            <h4 className="text-[9px] md:text-[10px] font-black uppercase tracking-[0.2em] text-indigo-400 mb-3 flex items-center gap-2">
                              <ShieldCheck className="w-3.5 h-3.5" aria-hidden="true" /> Parity Remediation Core
