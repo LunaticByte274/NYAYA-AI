@@ -1,7 +1,7 @@
 {
   "compilerOptions": {
     /* --- 1. CORE & RUNTIME --- */
-    "target": "es5",
+    "target": "ES2022",
     "lib": ["dom", "dom.iterable", "esnext"],
     "allowJs": true,
     "skipLibCheck": true,
@@ -27,7 +27,7 @@
     "verbatimModuleSyntax": true,
 
     /* --- 4. PATH MAPPING & PLUGINS --- */
-    "baseUrl": ".",
+    /* LINTER FIX: baseUrl is deprecated in modern TS. Paths automatically resolve relative to this file. */
     "paths": {
       "@/*": ["./src/*"]
     },
