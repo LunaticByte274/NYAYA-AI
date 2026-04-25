@@ -8,8 +8,9 @@ from pydantic import BaseModel, Field
 # Assuming this imports your mathematical logic correctly
 from app.services.math_utils import calculate_disparate_impact
 
+# 🚨 THE FIX: Removed prefix="/api/data" to prevent double-prefixing.
+# main.py will handle the base path assignment.
 router = APIRouter(
-    prefix="/api/data",
     tags=["Dataset Pipeline Engine"],
 )
 
@@ -47,7 +48,7 @@ async def audit_dataset(
     positive_outcome: str = Form(...)
 ):
     # 1. Security & Payload Validation
-    valid_mimes = ["text/csv", "application/vnd.ms-excel"]
+    valid_mimes = ["text/csv", "application/vnd.ms-excel", "application/csv", "text/x-csv"]
     if not file.filename.endswith('.csv') and file.content_type not in valid_mimes:
         raise HTTPException(
             status_code=status.HTTP_415_UNSUPPORTED_MEDIA_TYPE, 
@@ -83,7 +84,7 @@ async def audit_dataset(
         if missing_cols:
             raise ValueError(f"Tensor mismatch: Dataset is missing required columns: {', '.join(missing_cols)}")
             
-        # Validation: Ensure user-defined classes actually exist in the data to prevent divide-by-zero errors
+        # Validation: Ensure user-defined classes actually exist in the data
         if privileged_class not in df[protected_col].astype(str).values:
             raise ValueError(f"Class '{privileged_class}' not found in protected column '{protected_col}'.")
         if positive_outcome not in df[decision_col].astype(str).values:
