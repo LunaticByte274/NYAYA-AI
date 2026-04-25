@@ -16,8 +16,9 @@
  * 7. Button Safety: Enforced type="button" to prevent phantom form submissions.
  * 8. Layout Locks: Enforced Flex-1 Min-h-0 for safe viewport scaling across all cards.
  * 9. LINTER FINALE: Eliminated nested ternaries, replaced array index keys, secured globalThis bindings.
- * 10. ZERO-WARNING PROTOCOL: Fixed 'Finding' type mismatch via assertion, extracted Framework status helpers, upgraded to replaceAll().
- * 11. 🚨 ULTIMATE COMPLIANCE: Eradicated Cognitive Complexity (S3776), Handled Exceptions (S2486), Extracted JSX Ternaries (S3358), and Flattened Else-Ifs (S6660).
+ * 10. ZERO-WARNING PROTOCOL: Fixed 'Finding' type mismatch via assertion, extracted Framework status helpers.
+ * 11. ULTIMATE COMPLIANCE: Eradicated Cognitive Complexity (S3776) by extracting Pure Functions and Isolated Render Components. 
+ * 12. 🚨 THE FINAL STRIKE: Replaced Error with TypeError (S7786). Extracted Telemetry and API execution into Custom Hooks & Pure Async Helpers to completely flatten Cognitive Complexity to single digits.
  * ==========================================================================
  */
 
@@ -78,12 +79,241 @@ const ServerSafeClock = memo(function ServerSafeClock() {
 });
 ServerSafeClock.displayName = "ServerSafeClock";
 
-// --- TYPE DEFINITION FOR TELEMETRY TO PREVENT ARRAY INDEX KEY WARNINGS ---
+// --- STRICT TYPE DEFINITIONS ---
 interface TelemetryLog {
   id: string;
   text: string;
   timestamp: string;
 }
+
+interface HeatmapRendererProps {
+  loading: boolean;
+  hasScanned: boolean;
+  isUrlMode: boolean;
+  text: string;
+  findings: Finding[];
+  setSelectedFinding: (f: Finding | null) => void;
+}
+
+interface ComparisonRendererProps {
+  hasScanned: boolean;
+  findingsCount: number;
+  isUrlMode: boolean;
+  url: string;
+  text: string;
+}
+
+interface TelemetryRendererProps {
+  neuralLog: TelemetryLog[];
+  loading: boolean;
+  hasScanned: boolean;
+  logEndRef: React.RefObject<HTMLDivElement>;
+}
+
+interface FrameworkItem {
+  id: string;
+  name: string;
+  status: string;
+  colorClass: string;
+  desc: string;
+}
+
+// --- PURE HELPER FUNCTIONS (Extracted to reduce Cognitive Complexity) ---
+const calculateRiskScore = (findings: Finding[]): number => {
+  if (findings.length === 0) return 0;
+  return Math.min(100, findings.length * 28);
+};
+
+const getParityStatusText = (hasScanned: boolean, riskScore: number): string => {
+  if (!hasScanned) return "Engine Standby";
+  return riskScore > 50 ? "Institutional Failure" : "Compliance Achieved";
+};
+
+const getParityStatusColor = (hasScanned: boolean, riskScore: number): string => {
+  if (!hasScanned) return "text-slate-600";
+  return riskScore > 50 ? "text-red-500 glow-text-danger" : "text-emerald-500";
+};
+
+const getFrameworkStatus = (hasScanned: boolean, riskScore: number, failText: string, passText: string): string => {
+  if (!hasScanned) return "Pending";
+  return riskScore > 50 ? failText : passText;
+};
+
+// LINTER FIX (S3776): Extracted API execution logic out of the component
+const fetchAuditData = async (payload: string, isUrlMode: boolean, locale: string, domain: string): Promise<Finding[]> => {
+  const res = await scanTextForBias(payload, isUrlMode, locale, domain);
+  const validFindings = res?.findings;
+  
+  // LINTER FIX (S7786): Replaced 'Error' with 'TypeError' for structural validation
+  if (!Array.isArray(validFindings)) {
+    throw new TypeError("Handshake failure: Malformed response from Intelligence Core.");
+  }
+  
+  return validFindings;
+};
+
+// LINTER FIX (S3776): Extracted PDF export logic out of the component
+const executeExport = async (domain: string, setExporting: Function, setError: Function) => {
+  try {
+    await generateCompliancePDF("audit-report-container", `Nyaya_Audit_${domain.toUpperCase()}`);
+  } catch (err: unknown) {
+    setError(`PDF Compilation Error: Rendering context lost.`);
+    console.error("[Nyaya AI Core] - Document Export Failure:", err);
+  } finally {
+    setExporting(false);
+  }
+};
+
+// --- CUSTOM REACT HOOKS (Decoupling logic to satisfy S3776) ---
+const useTelemetryManager = (
+  activeScanRef: React.MutableRefObject<boolean>,
+  setNeuralLog: React.Dispatch<React.SetStateAction<TelemetryLog[]>>,
+  NEURAL_TELEMETRY: string[]
+) => {
+  const telemetryIntervalRef = useRef<NodeJS.Timeout | null>(null);
+
+  const stopTelemetry = useCallback(() => {
+    if (telemetryIntervalRef.current) {
+      clearInterval(telemetryIntervalRef.current);
+      telemetryIntervalRef.current = null;
+    }
+  }, []);
+
+  const startTelemetry = useCallback(() => {
+    let msgIndex = 0;
+    telemetryIntervalRef.current = setInterval(() => {
+      const isActive = activeScanRef.current;
+      const isComplete = msgIndex >= NEURAL_TELEMETRY.length;
+      
+      if (!isActive || isComplete) {
+        stopTelemetry();
+        return;
+      }
+
+      const nextMsg = NEURAL_TELEMETRY[msgIndex] as string;
+      const timeNow = new Date().toLocaleTimeString('en-US', { hour12: false, hour: '2-digit', minute: '2-digit', second: '2-digit' });
+      
+      setNeuralLog(prev => [...prev, { 
+        id: `log-${Date.now()}-${msgIndex}`, 
+        text: nextMsg, 
+        timestamp: timeNow 
+      }]);
+      
+      msgIndex++;
+    }, 600);
+  }, [NEURAL_TELEMETRY, activeScanRef, setNeuralLog, stopTelemetry]);
+
+  return { startTelemetry, stopTelemetry };
+};
+
+// --- ISOLATED RENDER COMPONENTS ---
+const SampleDataLoader = memo(({ setText }: { setText: (t: string) => void }) => (
+  <div className="flex flex-wrap gap-1.5 shrink-0">
+    {Object.keys(SAMPLE_DATA).map((key) => (
+      <button 
+        type="button"
+        key={`sample-btn-${key}`} 
+        onClick={() => setText(SAMPLE_DATA[key as keyof typeof SAMPLE_DATA])} 
+        className="text-[8px] px-2.5 py-1.5 rounded-lg bg-white/5 border border-white/10 text-slate-400 hover:text-white hover:bg-indigo-500/20 hover:border-indigo-500/40 transition-all uppercase font-black tracking-widest active:scale-95 outline-none focus-visible:ring-2 focus-visible:ring-indigo-500 transform-gpu"
+      >
+        Load {key}
+      </button>
+    ))}
+  </div>
+));
+SampleDataLoader.displayName = "SampleDataLoader";
+
+const HeatmapRenderer = memo(({ loading, hasScanned, isUrlMode, text, findings, setSelectedFinding }: HeatmapRendererProps) => {
+  if (loading) {
+    return (
+      <div className="space-y-4 pt-4 opacity-30 transform-gpu" aria-hidden="true">
+        <div className="h-3 w-full bg-white/20 rounded-full animate-pulse" />
+        <div className="h-3 w-5/6 bg-white/20 rounded-full animate-pulse" />
+        <div className="h-3 w-full bg-white/20 rounded-full animate-pulse" />
+      </div>
+    );
+  }
+  if (hasScanned) {
+    return (
+      <div className="text-sm md:text-base leading-relaxed text-slate-300 break-words whitespace-pre-wrap animate-in fade-in duration-700">
+        <LiveHighlighter 
+          text={isUrlMode ? "Scanned source intelligence mapped. Forensic findings established below." : text} 
+          findings={findings} 
+          onClickFinding={(f: Finding) => setSelectedFinding(f)} 
+        />
+      </div>
+    );
+  }
+  return (
+    <div className="h-full flex flex-col items-center justify-center opacity-20 border-2 border-dashed border-white/10 rounded-[20px] py-12 md:py-16 transition-opacity duration-500 hover:opacity-40 transform-gpu">
+      <Globe className="w-12 h-12 md:w-16 md:h-16 text-slate-500 mb-6 transition-transform hover:rotate-12 duration-700" aria-hidden="true" />
+      <p className="text-[9px] md:text-[10px] font-black uppercase tracking-[0.3em] md:tracking-[0.4em] text-center px-4">Forensic Standby</p>
+    </div>
+  );
+});
+HeatmapRenderer.displayName = "HeatmapRenderer";
+
+const ComparisonRenderer = memo(({ hasScanned, findingsCount, isUrlMode, url, text }: ComparisonRendererProps) => {
+  const isReady = hasScanned && findingsCount > 0;
+  
+  if (isReady) {
+    const activePayload = isUrlMode ? url : text;
+    const optimizedText = isUrlMode ? "Remote source ratiocination ready. Review Drawer for mitigation steps." : text.replaceAll(/aggressive|young|fraternity|pedigree|urban zip code|frequent employment gaps|maternity leave|cultural fit/gi, "■■■■■■");
+    return (
+      <div className="h-full overflow-y-auto custom-scrollbar pr-2 min-h-0">
+        <ComparisonView original={activePayload} optimized={optimizedText} />
+      </div>
+    );
+  }
+  
+  return (
+    <div className="h-full flex flex-col items-center justify-center border border-white/5 rounded-[20px] bg-[#020205] shadow-inner py-8 transform-gpu">
+      <History className="w-8 h-8 text-slate-800 mb-4" aria-hidden="true" />
+      <p className="text-[9px] text-slate-700 font-black uppercase tracking-[0.3em]">Engine Standby</p>
+    </div>
+  );
+});
+ComparisonRenderer.displayName = "ComparisonRenderer";
+
+const TelemetryRenderer = memo(({ neuralLog, loading, hasScanned, logEndRef }: TelemetryRendererProps) => {
+  const isStandby = loading === false && hasScanned === false;
+
+  return (
+    <div className="flex-1 font-mono text-[9.5px] md:text-[10.5px] leading-relaxed space-y-3 overflow-y-auto custom-scrollbar pr-2 min-h-0 z-10" aria-live="polite">
+      {neuralLog.map((log) => (
+        <div key={log.id} className="text-indigo-400 opacity-90 animate-in fade-in slide-in-from-left-4 duration-300 break-words flex gap-2 tabular-nums">
+          <span className="text-slate-600 select-none shrink-0" aria-hidden="true">[{log.timestamp}]</span> 
+          <span className="flex-1">{log.text}</span>
+        </div>
+      ))}
+      
+      {isStandby && (
+        <div className="text-slate-700 italic border-l-2 border-white/10 pl-3 py-1.5">Awaiting injection...</div>
+      )}
+      
+      {loading && (
+        <div className="text-indigo-500 tracking-[0.2em] uppercase font-black pl-3 mt-3 border-l-2 border-indigo-500/40 flex items-center gap-2 animate-pulse transform-gpu">
+          Syncing Nodes <span className="inline-block w-1.5 h-3 bg-indigo-500" aria-hidden="true" />
+        </div>
+      )}
+      <div ref={logEndRef as any} aria-hidden="true" />
+    </div>
+  );
+});
+TelemetryRenderer.displayName = "TelemetryRenderer";
+
+const FrameworkList = memo(({ frameworks }: { frameworks: FrameworkItem[] }) => (
+  <div className="space-y-4 flex-1 overflow-y-auto custom-scrollbar pr-1 min-h-0">
+    {frameworks.map((fw) => (
+      <div key={fw.id} className="p-4 md:p-5 bg-[#020205] rounded-[20px] border border-white/5 shadow-inner transition-colors duration-300 hover:bg-black group">
+        <p className="text-[9px] font-black text-slate-600 uppercase tracking-widest mb-1.5 break-words group-hover:text-slate-500 transition-colors">{fw.name}</p>
+        <p className={cn("text-xs md:text-sm font-black uppercase tracking-tighter mb-1.5 break-words leading-tight transition-colors", fw.colorClass)}>{fw.status}</p>
+        <p className="text-[8.5px] text-slate-500 font-bold uppercase tracking-widest leading-snug">{fw.desc}</p>
+      </div>
+    ))}
+  </div>
+));
+FrameworkList.displayName = "FrameworkList";
 
 // --- MASTER COMPONENT ---
 export default function AuditDashboard() {
@@ -105,12 +335,9 @@ export default function AuditDashboard() {
   
   const [neuralLog, setNeuralLog] = useState<TelemetryLog[]>([]);
   
-  // Critical Refs
   const logEndRef = useRef<HTMLDivElement>(null);
-  const telemetryIntervalRef = useRef<NodeJS.Timeout | null>(null);
   const activeScanRef = useRef<boolean>(false);
 
-  // Memoized Array prevents dependency array jitter
   const NEURAL_TELEMETRY = useMemo(() => [
     "Initializing Semantic Graph...",
     "Executing Cultural Nuance Pass...",
@@ -122,72 +349,47 @@ export default function AuditDashboard() {
     "Finalizing Fairness Confidence Score...",
   ], []);
 
-  // HYDRATION ANCHOR
+  // Use the extracted Custom Hook to manage telemetry complexity
+  const { startTelemetry, stopTelemetry } = useTelemetryManager(activeScanRef, setNeuralLog, NEURAL_TELEMETRY);
+
   useEffect(() => {
     setMounted(true);
   }, []);
 
-  // AUTO-SCROLL TELEMETRY
   useEffect(() => {
     if (logEndRef.current && loading) {
       logEndRef.current.scrollIntoView({ behavior: "smooth" });
     }
   }, [neuralLog, loading]);
 
-  // MEMORY LEAK PREVENTION (Global Unmount)
   useEffect(() => {
     activeScanRef.current = true;
     return () => {
       activeScanRef.current = false;
-      if (telemetryIntervalRef.current) clearInterval(telemetryIntervalRef.current);
+      stopTelemetry();
     };
-  }, []);
+  }, [stopTelemetry]);
 
-  // POWER-USER KEYBOARD SHORTCUTS
+  const isTextMode = isUrlMode === false;
+  const isPayloadEmpty = isUrlMode ? !url.trim() : !text.trim();
+  const isAnalyzeDisabled = loading || isPayloadEmpty;
+  const isExportVisible = hasScanned && loading === false;
+
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
-      if ((e.metaKey || e.ctrlKey) && e.key === 'Enter') {
-        const payload = isUrlMode ? url : text;
-        if (!loading && payload.trim()) {
-          handleAnalyze();
-        }
+      const isTriggerKey = (e.metaKey || e.ctrlKey) && e.key === 'Enter';
+      if (isTriggerKey && !isAnalyzeDisabled) {
+        handleAnalyze();
       }
     };
     globalThis.addEventListener('keydown', handleKeyDown);
     return () => globalThis.removeEventListener('keydown', handleKeyDown);
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [loading, isUrlMode, url, text]);
+  }, [isAnalyzeDisabled, isUrlMode, url, text]);
 
-  // LINTER FIX (S3776): Extracted Telemetry Logic to drastically reduce Cognitive Complexity
-  const startTelemetry = useCallback(() => {
-    let msgIndex = 0;
-    telemetryIntervalRef.current = setInterval(() => {
-      if (!activeScanRef.current) {
-        if (telemetryIntervalRef.current) clearInterval(telemetryIntervalRef.current);
-        return;
-      }
-      if (msgIndex < NEURAL_TELEMETRY.length) {
-        const nextMsg = NEURAL_TELEMETRY[msgIndex]!;
-        const timeNow = new Date().toLocaleTimeString('en-US', { hour12: false, hour: '2-digit', minute: '2-digit', second: '2-digit' });
-        
-        setNeuralLog(prev => [...prev, { 
-          id: `log-${Date.now()}-${msgIndex}`, 
-          text: nextMsg, 
-          timestamp: timeNow 
-        }]);
-        
-        msgIndex++;
-      } else if (telemetryIntervalRef.current) {
-        // LINTER FIX (S6660): Flattened the 'else { if (...) }' block
-        clearInterval(telemetryIntervalRef.current);
-      }
-    }, 600);
-  }, [NEURAL_TELEMETRY]);
-
-  // BULLETPROOF AUDIT HANDLER
+  // LINTER FIX (S3776): Flatted execution flow relying on pure async functions
   const handleAnalyze = useCallback(async () => {
-    const payload = isUrlMode ? url : text;
-    if (!payload.trim() || loading) return;
+    if (isAnalyzeDisabled) return;
     
     setLoading(true);
     setError(null);
@@ -196,133 +398,55 @@ export default function AuditDashboard() {
     setSelectedFinding(null); 
     activeScanRef.current = true;
     
-    if (telemetryIntervalRef.current) clearInterval(telemetryIntervalRef.current);
+    stopTelemetry();
     startTelemetry();
 
     try {
-      const res = await scanTextForBias(payload, isUrlMode, locale, domain);
+      const payload = isUrlMode ? url : text;
+      const validFindings = await fetchAuditData(payload, isUrlMode, locale, domain);
       
-      if (activeScanRef.current) {
-        if (res && Array.isArray(res.findings)) {
-          setFindings(res.findings);
-          setHasScanned(true);
-        } else {
-          throw new Error("Handshake failure: Malformed response from Intelligence Core.");
-        }
-      }
+      if (!activeScanRef.current) return;
+      
+      setFindings(validFindings);
+      setHasScanned(true);
+
     } catch (err: unknown) {
-      if (activeScanRef.current) {
-        const errorMessage = err instanceof Error ? err.message : "Pipeline Interrupted";
-        setError(`Runtime Exception: ${errorMessage}`);
-        // LINTER FIX (S2486): Properly handling and logging the caught exception
-        console.error("[Nyaya AI Core] - Audit Execution Failure:", err);
-      }
+      if (!activeScanRef.current) return;
+      const errorMessage = err instanceof Error ? err.message : "Pipeline Interrupted";
+      setError(`Runtime Exception: ${errorMessage}`);
+      console.error("[Nyaya AI Core] - Audit Execution Failure:", err);
     } finally {
       if (activeScanRef.current) {
         setLoading(false);
-        if (telemetryIntervalRef.current) clearInterval(telemetryIntervalRef.current);
+        stopTelemetry();
       }
     }
-  }, [isUrlMode, url, text, locale, domain, loading, startTelemetry]);
+  }, [isAnalyzeDisabled, isUrlMode, url, text, locale, domain, startTelemetry, stopTelemetry]);
 
-  // EXPORT HANDLER
   const handleExport = useCallback(() => {
     if (exporting) return;
-    
     setExporting(true);
     setError(null);
     
-    const timeout = setTimeout(async () => {
-      try {
-        await generateCompliancePDF("audit-report-container", `Nyaya_Audit_${domain.toUpperCase()}`);
-      } catch (err: unknown) {
-        setError(`PDF Compilation Error: Rendering context lost.`);
-        // LINTER FIX (S2486): Properly handling and logging the caught exception
-        console.error("[Nyaya AI Core] - Document Export Failure:", err);
-      } finally {
-        setExporting(false);
-      }
+    const timeout = setTimeout(() => {
+      executeExport(domain, setExporting, setError);
     }, 1500);
 
     return () => clearTimeout(timeout);
   }, [domain, exporting]);
 
-  let riskScore = 0;
-  if (findings.length > 0) {
-    riskScore = Math.min(100, findings.length * 28);
-  }
+  const handleKeyDownInput = (e: React.KeyboardEvent) => {
+    if (e.key === 'Enter') handleAnalyze();
+  };
+
+  const riskScore = calculateRiskScore(findings);
   const parityIndex = hasScanned ? 100 - riskScore : 0;
 
-  const getStatusText = () => {
-    if (!hasScanned) return "Engine Standby";
-    return riskScore > 50 ? "Institutional Failure" : "Compliance Achieved";
-  };
-
-  const getStatusColor = () => {
-    if (!hasScanned) return "text-slate-600";
-    return riskScore > 50 ? "text-red-500 glow-text-danger" : "text-emerald-500";
-  };
-
-  const getFwStatus = (failText: string, passText: string) => {
-    if (!hasScanned) return "Pending";
-    return riskScore > 50 ? failText : passText;
-  };
-
-  const frameworks = [
-    { id: "eu-ai-act", name: "EU AI Act", status: getFwStatus("Non-Compliant", "Aligned"), colorClass: "text-indigo-400", desc: "Article 10.3 Quality" },
-    { id: "nyc-ll144", name: "NYC LL144", status: getFwStatus("High Risk", "Safe"), colorClass: "text-cyan-400", desc: "AEDT Audit Protocol" },
-    { id: "un-sdg-103", name: "UN SDG 10.3", status: getFwStatus("Regression", "Impactful"), colorClass: "text-emerald-400", desc: "Inequality Metric" }
-  ];
-
-  // LINTER FIX (S3358): Extracted Heatmap JSX to eliminate nested ternaries
-  const renderHeatmapState = () => {
-    if (loading) {
-      return (
-        <div className="space-y-4 pt-4 opacity-30 transform-gpu" aria-hidden="true">
-          <div className="h-3 w-full bg-white/20 rounded-full animate-pulse" />
-          <div className="h-3 w-5/6 bg-white/20 rounded-full animate-pulse" />
-          <div className="h-3 w-full bg-white/20 rounded-full animate-pulse" />
-        </div>
-      );
-    }
-    if (hasScanned) {
-      return (
-        <div className="text-sm md:text-base leading-relaxed text-slate-300 break-words whitespace-pre-wrap animate-in fade-in duration-700">
-          <LiveHighlighter 
-            text={isUrlMode ? "Scanned source intelligence mapped. Forensic findings established below." : text} 
-            findings={findings} 
-            onClickFinding={(f) => setSelectedFinding(f)} 
-          />
-        </div>
-      );
-    }
-    return (
-      <div className="h-full flex flex-col items-center justify-center opacity-20 border-2 border-dashed border-white/10 rounded-[20px] py-12 md:py-16 transition-opacity duration-500 hover:opacity-40 transform-gpu">
-        <Globe className="w-12 h-12 md:w-16 md:h-16 text-slate-500 mb-6 transition-transform hover:rotate-12 duration-700" aria-hidden="true" />
-        <p className="text-[9px] md:text-[10px] font-black uppercase tracking-[0.3em] md:tracking-[0.4em] text-center px-4">Forensic Standby</p>
-      </div>
-    );
-  };
-
-  // LINTER FIX (S3358): Extracted Comparison JSX to eliminate nested ternaries
-  const renderComparisonState = () => {
-    if (hasScanned && findings.length > 0) {
-      return (
-        <div className="h-full overflow-y-auto custom-scrollbar pr-2 min-h-0">
-          <ComparisonView 
-            original={isUrlMode ? url : text} 
-            optimized={isUrlMode ? "Remote source ratiocination ready. Review Drawer for mitigation steps." : text.replaceAll(/aggressive|young|fraternity|pedigree|urban zip code|frequent employment gaps|maternity leave|cultural fit/gi, "■■■■■■")} 
-          />
-        </div>
-      );
-    }
-    return (
-      <div className="h-full flex flex-col items-center justify-center border border-white/5 rounded-[20px] bg-[#020205] shadow-inner py-8 transform-gpu">
-        <History className="w-8 h-8 text-slate-800 mb-4" aria-hidden="true" />
-        <p className="text-[9px] text-slate-700 font-black uppercase tracking-[0.3em]">Engine Standby</p>
-      </div>
-    );
-  };
+  const frameworks = useMemo(() => [
+    { id: "eu-ai-act", name: "EU AI Act", status: getFrameworkStatus(hasScanned, riskScore, "Non-Compliant", "Aligned"), colorClass: "text-indigo-400", desc: "Article 10.3 Quality" },
+    { id: "nyc-ll144", name: "NYC LL144", status: getFrameworkStatus(hasScanned, riskScore, "High Risk", "Safe"), colorClass: "text-cyan-400", desc: "AEDT Audit Protocol" },
+    { id: "un-sdg-103", name: "UN SDG 10.3", status: getFrameworkStatus(hasScanned, riskScore, "Regression", "Impactful"), colorClass: "text-emerald-400", desc: "Inequality Metric" }
+  ], [hasScanned, riskScore]);
 
   if (!mounted) return <div className="flex-1 w-full min-h-[800px] bg-transparent" aria-hidden="true" />;
 
@@ -376,7 +500,7 @@ export default function AuditDashboard() {
             <ExternalLink className="w-3.5 h-3.5" aria-hidden="true" /> API Docs
           </button>
 
-          {hasScanned && !loading && (
+          {isExportVisible && (
             <button 
               type="button"
               onClick={handleExport}
@@ -421,11 +545,11 @@ export default function AuditDashboard() {
                     <button 
                       type="button"
                       role="tab"
-                      aria-selected={isUrlMode === false} 
+                      aria-selected={isTextMode} 
                       onClick={() => { setIsUrlMode(false); setError(null); }} 
                       className={cn(
                         "flex-1 px-2 py-2 text-[9px] font-bold uppercase tracking-widest rounded-[10px] transition-all outline-none focus-visible:ring-2 focus-visible:ring-indigo-500/50 truncate", 
-                        isUrlMode ? "text-slate-500 hover:text-slate-200" : "bg-white/10 text-white shadow-lg"
+                        isTextMode ? "bg-white/10 text-white shadow-lg" : "text-slate-500 hover:text-slate-200"
                       )}
                     >
                       Text Source
@@ -489,33 +613,21 @@ export default function AuditDashboard() {
                    <span className="text-[9px] font-black text-slate-500 uppercase tracking-[0.2em] flex items-center gap-2 shrink-0">
                       <TerminalSquare className="w-3.5 h-3.5 text-indigo-400" aria-hidden="true" /> Payload Tensors
                    </span>
-                   {!isUrlMode && (
-                     <div className="flex flex-wrap gap-1.5 shrink-0">
-                       {Object.keys(SAMPLE_DATA).map((key) => (
-                         <button 
-                           type="button"
-                           key={`sample-btn-${key}`} 
-                           onClick={() => setText(SAMPLE_DATA[key as keyof typeof SAMPLE_DATA])} 
-                           className="text-[8px] px-2.5 py-1.5 rounded-lg bg-white/5 border border-white/10 text-slate-400 hover:text-white hover:bg-indigo-500/20 hover:border-indigo-500/40 transition-all uppercase font-black tracking-widest active:scale-95 outline-none focus-visible:ring-2 focus-visible:ring-indigo-500 transform-gpu"
-                         >
-                           Load {key}
-                         </button>
-                       ))}
-                     </div>
-                   )}
+                   {isTextMode && <SampleDataLoader setText={setText} />}
                 </div>
 
-                {isUrlMode ? (
+                {isUrlMode && (
                   <input 
                     type="url" 
                     placeholder="Paste intelligence endpoint (HTTPS)..." 
                     value={url} 
                     onChange={(e) => setUrl(e.target.value)} 
-                    onKeyDown={(e) => { if (e.key === 'Enter') handleAnalyze(); }}
+                    onKeyDown={handleKeyDownInput}
                     className="w-full flex-1 p-4 md:p-5 bg-transparent outline-none text-sm font-mono text-indigo-300 placeholder:text-slate-700/50 relative z-20 tabular-nums min-h-[100px]" 
                     aria-label="URL Input"
                   />
-                ) : (
+                )}
+                {isTextMode && (
                   <textarea 
                     className="w-full flex-1 p-4 md:p-5 bg-transparent outline-none resize-none text-sm md:text-base font-mono text-slate-300 placeholder:text-slate-700/50 leading-relaxed custom-scrollbar relative z-20 break-words whitespace-pre-wrap min-h-[100px]" 
                     placeholder="Inject intelligence source for forensic ratiocination..." 
@@ -538,7 +650,7 @@ export default function AuditDashboard() {
               <button 
                 type="button"
                 onClick={handleAnalyze} 
-                disabled={loading || (isUrlMode ? !url.trim() : !text.trim())}
+                disabled={isAnalyzeDisabled}
                 aria-busy={loading}
                 className={cn(
                   "w-full mt-auto py-4 md:py-5 rounded-[20px] font-black uppercase tracking-[0.3em] text-[10px] md:text-[11px] transition-all duration-500 flex justify-center items-center gap-3 outline-none focus-visible:ring-2 focus-visible:ring-indigo-500/50 shrink-0 transform-gpu",
@@ -579,9 +691,9 @@ export default function AuditDashboard() {
               <div className="text-center mt-6 relative z-10 w-full px-2" aria-live="polite">
                 <h4 className={cn(
                   "text-[10px] md:text-xs font-black uppercase tracking-[0.2em] break-words leading-relaxed transition-colors duration-500", 
-                  getStatusColor()
+                  getParityStatusColor(hasScanned, riskScore)
                 )}>
-                  {getStatusText()}
+                  {getParityStatusText(hasScanned, riskScore)}
                 </h4>
               </div>
             </div>
@@ -599,29 +711,12 @@ export default function AuditDashboard() {
                  </div>
               </div>
               
-              <div 
-                className="flex-1 font-mono text-[9.5px] md:text-[10.5px] leading-relaxed space-y-3 overflow-y-auto custom-scrollbar pr-2 min-h-0 z-10"
-                aria-live="polite" 
-              >
-                {neuralLog.map((log) => (
-                  <div key={log.id} className="text-indigo-400 opacity-90 animate-in fade-in slide-in-from-left-4 duration-300 break-words flex gap-2 tabular-nums">
-                    <span className="text-slate-600 select-none shrink-0" aria-hidden="true">[{log.timestamp}]</span> 
-                    <span className="flex-1">{log.text}</span>
-                  </div>
-                ))}
-                
-                {/* LINTER FIX (S7735): Evaluated logically instead of chained negated statements */}
-                {loading === false && hasScanned === false && (
-                  <div className="text-slate-700 italic border-l-2 border-white/10 pl-3 py-1.5">Awaiting injection...</div>
-                )}
-                
-                {loading && (
-                  <div className="text-indigo-500 tracking-[0.2em] uppercase font-black pl-3 mt-3 border-l-2 border-indigo-500/40 flex items-center gap-2 animate-pulse transform-gpu">
-                    Syncing Nodes <span className="inline-block w-1.5 h-3 bg-indigo-500" aria-hidden="true" />
-                  </div>
-                )}
-                <div ref={logEndRef} aria-hidden="true" />
-              </div>
+              <TelemetryRenderer 
+                neuralLog={neuralLog} 
+                loading={loading} 
+                hasScanned={hasScanned} 
+                logEndRef={logEndRef} 
+              />
             </div>
           </div>
           
@@ -636,7 +731,14 @@ export default function AuditDashboard() {
             </h3>
             
             <div className="flex-1 overflow-y-auto pr-3 md:pr-4 custom-scrollbar min-h-0 relative z-10">
-              {renderHeatmapState()}
+              <HeatmapRenderer 
+                loading={loading}
+                hasScanned={hasScanned}
+                isUrlMode={isUrlMode}
+                text={text}
+                findings={findings}
+                setSelectedFinding={setSelectedFinding}
+              />
             </div>
           </div>
 
@@ -655,7 +757,13 @@ export default function AuditDashboard() {
                </div>
                
                <div className="flex-1 min-h-0">
-                 {renderComparisonState()}
+                 <ComparisonRenderer
+                   hasScanned={hasScanned}
+                   findingsCount={findings.length}
+                   isUrlMode={isUrlMode}
+                   url={url}
+                   text={text}
+                 />
                </div>
             </div>
 
@@ -668,15 +776,8 @@ export default function AuditDashboard() {
                 <ShieldCheck className="w-4 h-4 text-indigo-400" aria-hidden="true" /> Framework Audit
               </h3>
               
-              <div className="space-y-4 flex-1 overflow-y-auto custom-scrollbar pr-1 min-h-0">
-                {frameworks.map((fw) => (
-                  <div key={fw.id} className="p-4 md:p-5 bg-[#020205] rounded-[20px] border border-white/5 shadow-inner transition-colors duration-300 hover:bg-black group">
-                    <p className="text-[9px] font-black text-slate-600 uppercase tracking-widest mb-1.5 break-words group-hover:text-slate-500 transition-colors">{fw.name}</p>
-                    <p className={cn("text-xs md:text-sm font-black uppercase tracking-tighter mb-1.5 break-words leading-tight transition-colors", fw.colorClass)}>{fw.status}</p>
-                    <p className="text-[8.5px] text-slate-500 font-bold uppercase tracking-widest leading-snug">{fw.desc}</p>
-                  </div>
-                ))}
-              </div>
+              <FrameworkList frameworks={frameworks} />
+              
               <div className="mt-6 pt-6 border-t border-white/5 text-center shrink-0">
                  <div className="flex items-center justify-center gap-2 mb-1.5 opacity-60">
                     <ShieldCheck className="w-3.5 h-3.5 text-emerald-500" aria-hidden="true" />
