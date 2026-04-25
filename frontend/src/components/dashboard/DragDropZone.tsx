@@ -19,6 +19,7 @@ import { UploadCloud, FileCheck, AlertCircle, FileType } from "lucide-react";
  * 7. Tabular-nums: Applied to file size calculation to prevent layout jitter.
  * 8. Deep Accessibility (A11y): Fully keyboard navigable with proper ARIA roles.
  * 9. Explicit DevTools Binding: Added displayName for precise profiling.
+ * 10. 🚨 LINTER FINALE: Extracted nested ternaries and upgraded to Number.parseFloat.
  * ==========================================================================
  */
 
@@ -142,7 +143,22 @@ export const DragDropZone = memo(function DragDropZone({
     const k = 1024;
     const sizes = ['Bytes', 'KB', 'MB', 'GB'];
     const i = Math.floor(Math.log(bytes) / Math.log(k));
-    return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i];
+    // LINTER FIX: Replaced parseFloat with Number.parseFloat
+    return Number.parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i];
+  };
+
+  // LINTER FIX: Extracted nested ternaries for Zone styling
+  const getZoneStyle = () => {
+    if (isDragging) return "border-indigo-500 bg-indigo-500/10 scale-[0.98] shadow-[inset_0_0_30px_rgba(79,70,229,0.2)]";
+    if (currentFile) return "border-emerald-500/50 bg-emerald-500/5 hover:bg-emerald-500/10 hover:border-emerald-500 shadow-[inset_0_0_20px_rgba(16,185,129,0.05)]";
+    return "border-white/10 bg-black/40 hover:border-indigo-500/50 hover:bg-indigo-500/5 shadow-[inset_0_0_20px_rgba(0,0,0,0.5)]";
+  };
+
+  // LINTER FIX: Extracted nested ternaries for Icon styling
+  const getIconStyle = () => {
+    if (isDragging) return "bg-indigo-500/20 border-indigo-500/50 scale-110 text-indigo-400";
+    if (currentFile) return "bg-emerald-500/20 border-emerald-500/50 text-emerald-400 shadow-[0_0_20px_rgba(16,185,129,0.2)]";
+    return "bg-white/5 border-white/10 text-slate-400 group-hover:bg-indigo-500/10 group-hover:border-indigo-500/30 group-hover:text-indigo-400 group-hover:scale-110";
   };
 
   return (
@@ -159,11 +175,7 @@ export const DragDropZone = memo(function DragDropZone({
         aria-label={`Upload ${accept} file. Maximum size ${MAX_FILE_SIZE_MB} megabytes.`}
         className={cn(
           "relative w-full flex-1 min-h-[130px] sm:min-h-[160px] xl:min-h-[190px] rounded-[24px] md:rounded-[32px] border-2 border-dashed flex flex-col items-center justify-center transition-all duration-500 cursor-pointer overflow-hidden group focus:outline-none focus-visible:ring-2 focus-visible:ring-indigo-500/50 transform-gpu will-change-transform",
-          isDragging 
-            ? "border-indigo-500 bg-indigo-500/10 scale-[0.98] shadow-[inset_0_0_30px_rgba(79,70,229,0.2)]" 
-            : currentFile
-              ? "border-emerald-500/50 bg-emerald-500/5 hover:bg-emerald-500/10 hover:border-emerald-500 shadow-[inset_0_0_20px_rgba(16,185,129,0.05)]"
-              : "border-white/10 bg-black/40 hover:border-indigo-500/50 hover:bg-indigo-500/5 shadow-[inset_0_0_20px_rgba(0,0,0,0.5)]"
+          getZoneStyle()
         )}
       >
         {/* Hidden Secure File Input - A11y locked */}
@@ -188,9 +200,7 @@ export const DragDropZone = memo(function DragDropZone({
           {/* Dynamic Target Icon - Rescaled for Vertical Rhythm */}
           <div className={cn(
             "w-12 h-12 md:w-14 md:h-14 rounded-[16px] md:rounded-[20px] flex items-center justify-center mb-3 md:mb-4 transition-all duration-500 border shadow-2xl transform-gpu",
-            isDragging ? "bg-indigo-500/20 border-indigo-500/50 scale-110 text-indigo-400" 
-            : currentFile ? "bg-emerald-500/20 border-emerald-500/50 text-emerald-400 shadow-[0_0_20px_rgba(16,185,129,0.2)]"
-            : "bg-white/5 border-white/10 text-slate-400 group-hover:bg-indigo-500/10 group-hover:border-indigo-500/30 group-hover:text-indigo-400 group-hover:scale-110"
+            getIconStyle()
           )}>
             {currentFile ? <FileCheck className="w-5 h-5 md:w-6 md:h-6" aria-hidden="true" /> : <UploadCloud className="w-5 h-5 md:w-6 md:h-6" aria-hidden="true" />}
           </div>
