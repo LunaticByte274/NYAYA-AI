@@ -4,14 +4,13 @@ uvicorn[standard]==0.27.1
 pydantic==2.6.1
 python-multipart==0.0.9
 python-dotenv==1.0.1
+slowapi==0.1.9
 
 # --- AI & GOOGLE ECOSYSTEM ---
-# Note: google-generativeai is the standard SDK for Gemini 1.5 Pro
 google-generativeai==0.4.1
 tenacity==8.2.3
 
-# --- DATA SCIENCE (PRE-COMPILED BARS) ---
-# We use 2.2.1 to ensure compatibility with Python 3.11/3.12
+# --- DATA SCIENCE ---
 pandas==2.2.1
 numpy==1.26.4
 
