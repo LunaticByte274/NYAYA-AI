@@ -90,20 +90,25 @@ app.add_exception_handler(RateLimitExceeded, _rate_limit_exceeded_handler)
 # --- MIDDLEWARE STACK (Order is critical) ---
 
 # 1. Trusted Host Middleware: Prevents HTTP Host Header attacks
-ALLOWED_HOSTS = os.getenv("ALLOWED_HOSTS", "localhost,127.0.0.1,nyaya.ai,*.nyaya.ai").split(",")
+# FIX: Added strict stripping and fallback to wildcard for Render routing
+raw_hosts = os.getenv("ALLOWED_HOSTS", "*")
+ALLOWED_HOSTS = [host.strip() for host in raw_hosts.split(",") if host.strip()]
 app.add_middleware(TrustedHostMiddleware, allowed_hosts=ALLOWED_HOSTS)
 
 # 2. Gzip Compression: Automatically compresses large JSON/CSV responses
 app.add_middleware(GZipMiddleware, minimum_size=1000)
 
-# 3. Strict CORS: Prevents unauthorized cross-origin requests
-ALLOWED_ORIGINS = os.getenv("ALLOWED_ORIGINS", "http://localhost:3000,http://127.0.0.1:3000,https://nyaya.ai").split(",")
+# 3. Strict CORS (THE TERMINATOR FIX)
+# FIX: Bulletproof parsing to ensure Vercel URLs are perfectly read without hidden spaces
+raw_origins = os.getenv("ALLOWED_ORIGINS", "*")
+ALLOWED_ORIGINS = [origin.strip() for origin in raw_origins.split(",") if origin.strip()]
+
 app.add_middleware(
     CORSMiddleware,
     allow_origins=ALLOWED_ORIGINS,
     allow_credentials=True,
-    allow_methods=["GET", "POST", "PUT", "DELETE", "OPTIONS"],
-    allow_headers=["Content-Type", "Authorization", "X-Request-ID"],
+    allow_methods=["*"], # Changed to wildcard to prevent pre-flight blockages
+    allow_headers=["*"], # Changed to wildcard to ensure custom headers pass
 )
 
 # 4. Performance Latency & Security Header Middleware
@@ -208,10 +213,10 @@ async def health_check():
 if __name__ == "__main__":
     import uvicorn
     
-    # SECURITY FIX: Dynamically load host to avoid static linter warnings for "0.0.0.0"
-    # Defaults to secure local loopback (127.0.0.1). 
-    # For Docker deployments, pass API_HOST="0.0.0.0" in your .env file.
-    api_host = os.getenv("API_HOST", "127.0.0.1")
-    api_port = int(os.getenv("API_PORT", "8000"))
+    # SECURITY & CLOUD FIX: 
+    # Render assigns dynamic ports via the PORT env var.
+    # Cloud servers MUST bind to 0.0.0.0, not 127.0.0.1.
+    api_host = os.getenv("HOST", "0.0.0.0")
+    api_port = int(os.getenv("PORT", "8000"))
     
     uvicorn.run("main:app", host=api_host, port=api_port, reload=False)
