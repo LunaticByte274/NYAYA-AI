@@ -8,11 +8,8 @@ from pydantic import BaseModel, Field
 # Assuming this imports your mathematical logic correctly
 from app.services.math_utils import calculate_disparate_impact
 
-# 🚨 THE FIX: Removed prefix="/api/data" to prevent double-prefixing.
-# main.py will handle the base path assignment.
-router = APIRouter(
-    tags=["Dataset Pipeline Engine"],
-)
+# 🚨 No prefix here! main.py handles the /api/data prefix to prevent 404 errors.
+router = APIRouter(tags=["Dataset Pipeline Engine"])
 
 # Enterprise Telemetry Logger
 logger = logging.getLogger("nyaya_dataset_core")
@@ -38,7 +35,7 @@ class DatasetAuditResponse(BaseModel):
     response_model=DatasetAuditResponse,
     status_code=status.HTTP_200_OK,
     summary="Mathematical Dataset Bias Audit",
-    description="Ingests tabular data, isolates protected vectors, and calculates the Disparate Impact Ratio (DIR)."
+    description="Ingests tabular data, automatically sanitizes headers, and calculates DIR."
 )
 async def audit_dataset(
     file: UploadFile = File(...),
@@ -47,8 +44,8 @@ async def audit_dataset(
     decision_col: str = Form(...),
     positive_outcome: str = Form(...)
 ):
-    # 1. Security & Payload Validation
-    valid_mimes = ["text/csv", "application/vnd.ms-excel", "application/csv", "text/x-csv"]
+    # 1. Broadened Security Validation (Catches CSVs mislabeled by browsers)
+    valid_mimes = ["text/csv", "application/vnd.ms-excel", "application/csv", "text/x-csv", "application/octet-stream"]
     if not file.filename.endswith('.csv') and file.content_type not in valid_mimes:
         raise HTTPException(
             status_code=status.HTTP_415_UNSUPPORTED_MEDIA_TYPE, 
@@ -72,28 +69,50 @@ async def audit_dataset(
     # 3. Offloaded Tensor Processing (Threaded to protect the Async Event Loop)
     def process_dataframe(data_bytes: bytes) -> dict:
         try:
-            # Optimized C-engine for faster CSV parsing
-            df = pd.read_csv(io.BytesIO(data_bytes), engine="c", low_memory=False)
+            # Decode bytes to string, ignoring weird hidden characters
+            raw_text = data_bytes.decode('utf-8', errors='ignore')
+            
+            # The Mac "Rich Text" Trap Check
+            if raw_text.startswith(r"{\rtf"):
+                raise ValueError("File is saved as Rich Text (RTF) instead of a pure CSV. Please open it, copy the text, and save as plain text (.csv).")
+            
+            # Load into Pandas
+            df = pd.read_csv(io.StringIO(raw_text), low_memory=False)
         except pd.errors.EmptyDataError:
             raise ValueError("The provided CSV contains no structural data columns.")
-        except pd.errors.ParserError:
-            raise ValueError("CSV parsing failed. Ensure the file is valid UTF-8 and correctly delimited.")
+        except Exception as e:
+            raise ValueError(f"CSV parsing failed: {str(e)}")
+
+        # --- 🚨 THE MAGIC ARMOR: AUTO-NORMALIZATION 🚨 ---
+        # Strip invisible spaces and force uppercase on CSV headers
+        df.columns = df.columns.str.strip().str.upper()
+        
+        # Strip invisible spaces and force uppercase on Frontend requests
+        p_col = protected_col.strip().upper()
+        d_col = decision_col.strip().upper()
+        p_class = str(privileged_class).strip().upper()
+        p_out = str(positive_outcome).strip().upper()
 
         # Validation: Ensure requested vectors exist in the DataFrame
-        missing_cols = [col for col in [protected_col, decision_col] if col not in df.columns]
+        missing_cols = [col for col in [p_col, d_col] if col not in df.columns]
         if missing_cols:
-            raise ValueError(f"Tensor mismatch: Dataset is missing required columns: {', '.join(missing_cols)}")
+            raise ValueError(f"Tensor mismatch: Missing required columns: {', '.join(missing_cols)}. The CSV actually contains these columns: {list(df.columns)}")
             
+        # Clean the data inside the cells to ensure exact matching
+        df[p_col] = df[p_col].astype(str).str.strip().str.upper()
+        df[d_col] = df[d_col].astype(str).str.strip().str.upper()
+
         # Validation: Ensure user-defined classes actually exist in the data
-        if privileged_class not in df[protected_col].astype(str).values:
-            raise ValueError(f"Class '{privileged_class}' not found in protected column '{protected_col}'.")
-        if positive_outcome not in df[decision_col].astype(str).values:
-            raise ValueError(f"Outcome '{positive_outcome}' not found in decision column '{decision_col}'.")
+        if p_class not in df[p_col].values:
+            raise ValueError(f"Class '{p_class}' not found in protected column '{p_col}'. Found: {df[p_col].unique()}")
+        if p_out not in df[d_col].values:
+            raise ValueError(f"Outcome '{p_out}' not found in decision column '{d_col}'. Found: {df[d_col].unique()}")
 
         # Mathematical Core Execution
         try:
+            # Pass the sanitized variables to the math engine
             dir_score = calculate_disparate_impact(
-                df, protected_col, privileged_class, decision_col, positive_outcome
+                df, p_col, p_class, d_col, p_out
             )
         except Exception as math_err:
             logger.error(f"Math Engine Failure: {str(math_err)}")
@@ -119,9 +138,9 @@ async def audit_dataset(
             "message": message,
             "metadata": {
                 "total_records": len(df),
-                "protected_attribute": protected_col,
-                "privileged_class": privileged_class,
-                "decision_column": decision_col
+                "protected_attribute": p_col,
+                "privileged_class": p_class,
+                "decision_column": d_col
             }
         }
 
