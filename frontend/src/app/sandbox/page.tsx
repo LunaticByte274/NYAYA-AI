@@ -13,6 +13,7 @@
  * 4. Memory-Safe Cleanups: Strict Abort patterns for active simulation intervals.
  * 5. Tabular-nums: Applied to log timestamps and score deltas to prevent UI jitter.
  * 6. Explicit DevTools Binding: Added displayName for precise React profiling.
+ * 7. 🚨 OPTIONAL CHAINING FIX: Bulletproofed the map function to prevent 'undefined' crashes.
  * ==========================================================================
  */
 
@@ -40,7 +41,7 @@ import { cn } from "@/lib/utils";
 // --- PERFORMANCE OPTIMIZATION: ISOLATED CLOCK ---
 // Memoized to prevent 1000ms state updates from re-rendering the heavy parent layout
 const ServerSafeClock = memo(function ServerSafeClock() {
-  const [time, setTime] = useState<string>("--:--:-- UTC");
+  const [time, setTime] = useState("--:--:-- UTC");
   
   useEffect(() => {
     const updateTime = () => {
@@ -60,7 +61,7 @@ ServerSafeClock.displayName = "ServerSafeClock";
 // --- MASTER COMPONENT ---
 export default function CounterfactualSandbox() {
   // --- CORE STATE ARCHITECTURE ---
-  const [mounted, setMounted] = useState<boolean>(false);
+  const [mounted, setMounted] = useState(false);
   const [profile, setProfile] = useState({ 
     gender: "Male", 
     age: "25", 
@@ -68,8 +69,8 @@ export default function CounterfactualSandbox() {
     experience: "3 Years"
   });
   
-  const [loading, setLoading] = useState<boolean>(false);
-  const [hasSimulated, setHasSimulated] = useState<boolean>(false);
+  const [loading, setLoading] = useState(false);
+  const [hasSimulated, setHasSimulated] = useState(false);
   const [neuralLog, setNeuralLog] = useState<string[]>([]);
 
   // Simulation Mathematics (In production, driven by FastAPI Engine)
@@ -118,11 +119,11 @@ export default function CounterfactualSandbox() {
   const simulationLogs = useMemo(() => [
     "Initializing Counterfactual Engine...",
     "Isolating Protected Variables...",
-    `Perturbing [Zip Code] Tensor: 10001 -> ${profile.zip}...`,
-    `Perturbing [Age] Tensor: 25 -> ${profile.age}...`,
+    `Perturbing [Zip Code] Tensor: 10001 -> ${profile.zip || 'N/A'}...`,
+    `Perturbing [Age] Tensor: 25 -> ${profile.age || 'N/A'}...`,
     "Recalculating Multi-Layer Perceptron Weights...",
     "Detecting Correlated Proxy Shifts...",
-    `Zip Code ${profile.zip} strongly correlates with demographic variance...`,
+    `Zip Code ${profile.zip || 'N/A'} strongly correlates with demographic variance...`,
     "Calculating Disparate Impact Delta...",
     "Simulation Complete. Compiling XAI Proof...",
   ], [profile.zip, profile.age]);
@@ -143,7 +144,9 @@ export default function CounterfactualSandbox() {
 
       if (msgIndex < simulationLogs.length) {
         // Safe state update via callback to prevent stale closures
-        setNeuralLog(prev => [...prev, simulationLogs[msgIndex]!]);
+        // 🚨 FIX: Force cast to string to guarantee we never push undefined into the array
+        const nextMessage = simulationLogs[msgIndex] || "";
+        setNeuralLog(prev => [...prev, nextMessage]);
         msgIndex++;
       } else {
         clearInterval(logInterval);
@@ -342,8 +345,9 @@ export default function CounterfactualSandbox() {
               
               {/* Telemetry Log Auto-Scroller */}
               <div className="flex-1 font-mono text-[9.5px] md:text-[10.5px] leading-relaxed space-y-4 overflow-y-auto custom-scrollbar pr-2 min-h-0 relative z-10" aria-live="polite">
-                {neuralLog.map((log, i) => (
-                  <div key={i} className={cn("opacity-90 animate-in fade-in slide-in-from-left-4 duration-300 break-words tabular-nums transform-gpu", log.includes(profile.zip) ? "text-red-400 font-bold border-l-2 border-red-500/40 pl-3" : "text-indigo-400")}>
+                {/* 🚨 FIX: Filter out nulls and use optional chaining (?.) to guarantee safety */}
+                {neuralLog.filter(Boolean).map((log, i) => (
+                  <div key={i} className={cn("opacity-90 animate-in fade-in slide-in-from-left-4 duration-300 break-words tabular-nums transform-gpu", log?.includes(profile.zip || '') ? "text-red-400 font-bold border-l-2 border-red-500/40 pl-3" : "text-indigo-400")}>
                     <span className="text-slate-600">[{new Date().toLocaleTimeString([], { hour12: false, minute: '2-digit', second: '2-digit' })}]</span> {log}
                   </div>
                 ))}
