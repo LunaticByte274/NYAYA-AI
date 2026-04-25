@@ -90,7 +90,6 @@ app.add_exception_handler(RateLimitExceeded, _rate_limit_exceeded_handler)
 # --- MIDDLEWARE STACK (Order is critical) ---
 
 # 1. Trusted Host Middleware: Prevents HTTP Host Header attacks
-# FIX: Added strict stripping and fallback to wildcard for Render routing
 raw_hosts = os.getenv("ALLOWED_HOSTS", "*")
 ALLOWED_HOSTS = [host.strip() for host in raw_hosts.split(",") if host.strip()]
 app.add_middleware(TrustedHostMiddleware, allowed_hosts=ALLOWED_HOSTS)
@@ -98,17 +97,24 @@ app.add_middleware(TrustedHostMiddleware, allowed_hosts=ALLOWED_HOSTS)
 # 2. Gzip Compression: Automatically compresses large JSON/CSV responses
 app.add_middleware(GZipMiddleware, minimum_size=1000)
 
-# 3. Strict CORS (THE TERMINATOR FIX)
-# FIX: Bulletproof parsing to ensure Vercel URLs are perfectly read without hidden spaces
+# 3. 🚨 SMART CORS CONFIGURATION (FULLY FIXED) 🚨
+# FastAPI throws a fatal error if allow_origins=["*"] AND allow_credentials=True.
+# This dynamic logic prevents the crash depending on what is in your Render dashboard.
 raw_origins = os.getenv("ALLOWED_ORIGINS", "*")
-ALLOWED_ORIGINS = [origin.strip() for origin in raw_origins.split(",") if origin.strip()]
+
+if raw_origins.strip() == "*":
+    ALLOWED_ORIGINS = ["*"]
+    ALLOW_CREDENTIALS = False  # Strictly required by FastAPI when using "*"
+else:
+    ALLOWED_ORIGINS = [origin.strip() for origin in raw_origins.split(",") if origin.strip()]
+    ALLOW_CREDENTIALS = True
 
 app.add_middleware(
     CORSMiddleware,
     allow_origins=ALLOWED_ORIGINS,
-    allow_credentials=True,
-    allow_methods=["*"], # Changed to wildcard to prevent pre-flight blockages
-    allow_headers=["*"], # Changed to wildcard to ensure custom headers pass
+    allow_credentials=ALLOW_CREDENTIALS,
+    allow_methods=["*"], 
+    allow_headers=["*"], 
 )
 
 # 4. Performance Latency & Security Header Middleware
@@ -173,7 +179,10 @@ async def global_exception_handler(request: Request, exc: Exception):
 # Core Intelligence Modules
 app.include_router(router_heatmap.router, prefix="/api/forensics", tags=["Heatmap"])
 app.include_router(router_vision.router, prefix="/api/vision", tags=["Vision"])
-app.include_router(router_dataset.router, prefix="/api/dataset", tags=["Dataset"])
+
+# 🚨 ROUTER PREFIX FIX: Changed from /api/dataset to /api/data to match Vercel exactly
+app.include_router(router_dataset.router, prefix="/api/data", tags=["Dataset"])
+
 app.include_router(router_simulate.router, prefix="/api/simulation", tags=["Simulation"])
 app.include_router(router_intersectional.router, prefix="/api/intersectional", tags=["Intersectional"])
 
