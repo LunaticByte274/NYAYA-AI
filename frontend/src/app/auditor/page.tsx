@@ -20,7 +20,7 @@
  * 11. Enterprise JSDoc Annotations: Self-documenting pipeline handlers.
  * 12. FINAL POLISH: Eliminated nested ternaries, negated conditions, and unused imports.
  * 13. ULTIMATE COMPLIANCE: Eradicated Cognitive Complexity (S3776), Handled Exceptions (S2486), Extracted JSX Components (S3358), and Upgraded Telemetry Array Keys (S6479).
- * 14. 🚨 THE FINAL STRIKE: Applied Optional Chaining (S6582) to PipelineConsole and extracted Telemetry Logic to a Custom Hook to perfectly match the Dashboard's zero-complexity architecture.
+ * 14. 🚨 THE NUCLEAR STRIKE: Extracted ALL state, intervals, and async effects into a 'useAuditorLogic' custom hook. DatasetAuditor is now a pure Presenter component.
  * ==========================================================================
  */
 
@@ -158,10 +158,152 @@ const useAuditorTelemetryManager = (
   return { startTelemetry, stopTelemetry };
 };
 
+// 🚨 CONTAINER HOOK: Moves all logic out of the component to hit 0 Cognitive Complexity 🚨
+const useAuditorLogic = () => {
+  const [mounted, setMounted] = useState<boolean>(false);
+  const [file, setFile] = useState<File | null>(null);
+  const [status, setStatus] = useState<"idle" | "auditing" | "remediating" | "success" | "error">("idle");
+  const [metrics, setMetrics] = useState<AuditMetrics | null>(null);
+  const [error, setError] = useState<string | null>(null);
+  const [neuralLog, setNeuralLog] = useState<TelemetryLog[]>([]);
+
+  const [config, setConfig] = useState<Record<string, string>>({
+    protected_col: "GENDER",
+    privileged_class: "MALE",
+    decision_col: "LOAN_APPROVED",
+    positive_outcome: "YES"
+  });
+
+  const logEndRef = useRef<HTMLDivElement>(null);
+  const activeProcessRef = useRef<boolean>(false);
+
+  const pipelineSteps = useMemo(() => [
+    "Mounting Tabular Tensor...",
+    "Isolating Protected Attribute Vectors...",
+    "Calculating Privileged Selection Rate (SRp)...",
+    "Calculating Unprivileged Selection Rate (SRu)...",
+    "Applying EEOC 4/5ths Rule Logic...",
+    "Analyzing Disparate Impact Ratio (DIR)...",
+    "Generating Statistical Proofs (XAI)...",
+    "Validating against UN SDG 10.3 metrics...",
+    "Finalizing Compliance Ledger...",
+  ], []);
+
+  const { startTelemetry, stopTelemetry } = useAuditorTelemetryManager(activeProcessRef, setNeuralLog, pipelineSteps);
+
+  useEffect(() => {
+    setMounted(true);
+    activeProcessRef.current = true;
+    return () => {
+      activeProcessRef.current = false;
+      stopTelemetry();
+    };
+  }, [stopTelemetry]);
+
+  useEffect(() => {
+    if (logEndRef.current && status === "auditing") {
+      logEndRef.current.scrollIntoView({ behavior: "smooth" });
+    }
+  }, [neuralLog, status]);
+
+  const handleAudit = useCallback(async (e: React.MouseEvent<HTMLButtonElement>) => {
+    e.preventDefault();
+    if (!file) return;
+
+    setStatus("auditing");
+    setError(null);
+    setMetrics(null);
+    setNeuralLog([]);
+    activeProcessRef.current = true;
+
+    stopTelemetry();
+    startTelemetry();
+
+    const formData = new FormData();
+    formData.append("file", file);
+    Object.entries(config).forEach(([key, val]) => formData.append(key, val));
+
+    try {
+      const res = await fetch(`${API_BASE_URL}/api/data/audit-csv`, {
+        method: "POST",
+        body: formData,
+      });
+
+      if (!activeProcessRef.current) return;
+
+      if (!res.ok) {
+        const errData = await res.json().catch(() => ({}));
+        throw new TypeError(errData.detail || "Tabular pipeline processing failure.");
+      }
+
+      const data: AuditMetrics = await res.json();
+      if (activeProcessRef.current) {
+        setMetrics(data);
+        setStatus("success");
+      }
+    } catch (err: unknown) {
+      if (!activeProcessRef.current) return;
+      const errorMessage = err instanceof Error ? err.message : "Network synchronization failure.";
+      setError(errorMessage);
+      setStatus("error");
+      console.error("[Nyaya AI Core] - Audit Execution Failure:", err);
+    } finally {
+      if (activeProcessRef.current) {
+        stopTelemetry();
+      }
+    }
+  }, [file, config, startTelemetry, stopTelemetry]);
+
+  const handleRemediate = useCallback(async (e: React.MouseEvent<HTMLButtonElement>) => {
+    e.preventDefault();
+    if (!file || !metrics) return;
+    setStatus("remediating");
+    setError(null);
+    
+    const formData = new FormData();
+    formData.append("file", file);
+    Object.entries(config).forEach(([key, val]) => formData.append(key, val));
+
+    try {
+      const res = await fetch(`${API_BASE_URL}/api/remediate/fix-dataset`, {
+        method: "POST",
+        body: formData,
+      });
+
+      if (!res.ok) {
+        const errData = await res.json().catch(() => ({}));
+        throw new TypeError(errData.detail || "Remediation core failure.");
+      }
+
+      const blob = await res.blob();
+      const url = globalThis.URL.createObjectURL(blob);
+      const link = document.createElement('a');
+      link.href = url;
+      link.setAttribute('download', `NYAYA_BALANCED_${file.name}`);
+      document.body.appendChild(link);
+      link.click();
+      link.remove();
+      globalThis.URL.revokeObjectURL(url); 
+      
+      setStatus("success");
+    } catch (err: unknown) {
+      const errorMessage = err instanceof Error ? err.message : "Strategic remediation failed.";
+      setError(`Remediation Error: ${errorMessage}`);
+      setStatus("error");
+      console.error("[Nyaya AI Core] - Remediation Execution Failure:", err);
+    }
+  }, [file, config, metrics]);
+
+  return {
+    mounted, file, setFile, status, metrics, error, neuralLog, config, setConfig,
+    logEndRef, handleAudit, handleRemediate
+  };
+};
+
 // --- ISOLATED RENDER COMPONENTS (Strictly Typed to eliminate TS/Sonar Warnings) ---
 const PipelineConsole = memo(({ neuralLog, status, metrics, logEndRef }: PipelineConsoleProps) => {
-  // LINTER FIX (S6582): Simplified boolean logic for optional chaining and clarity
-  const isStandby = status === "idle" || status === "error" || status === "success" && !metrics?.status;
+  // LINTER FIX (S6582, S1066): Grouped logical conditions perfectly
+  const isStandby = status === "idle" || status === "error" || (status === "success" && !metrics?.status);
   const isProcessing = status === "auditing" || status === "remediating";
 
   return (
@@ -272,143 +414,12 @@ const RatiocinationCard = memo(({ metrics, status, handleRemediate }: Ratiocinat
 });
 RatiocinationCard.displayName = "RatiocinationCard";
 
-// --- MASTER COMPONENT ---
+// --- MASTER COMPONENT (NOW PURELY A PRESENTER - COGNITIVE COMPLEXITY = 1) ---
 export default function DatasetAuditor() {
-  const [mounted, setMounted] = useState<boolean>(false);
-  const [file, setFile] = useState<File | null>(null);
-  const [status, setStatus] = useState<"idle" | "auditing" | "remediating" | "success" | "error">("idle");
-  const [metrics, setMetrics] = useState<AuditMetrics | null>(null);
-  const [error, setError] = useState<string | null>(null);
-  const [neuralLog, setNeuralLog] = useState<TelemetryLog[]>([]);
-
-  const [config, setConfig] = useState<Record<string, string>>({
-    protected_col: "GENDER",
-    privileged_class: "MALE",
-    decision_col: "LOAN_APPROVED",
-    positive_outcome: "YES"
-  });
-
-  const logEndRef = useRef<HTMLDivElement>(null);
-  const activeProcessRef = useRef<boolean>(false);
-
-  const pipelineSteps = useMemo(() => [
-    "Mounting Tabular Tensor...",
-    "Isolating Protected Attribute Vectors...",
-    "Calculating Privileged Selection Rate (SRp)...",
-    "Calculating Unprivileged Selection Rate (SRu)...",
-    "Applying EEOC 4/5ths Rule Logic...",
-    "Analyzing Disparate Impact Ratio (DIR)...",
-    "Generating Statistical Proofs (XAI)...",
-    "Validating against UN SDG 10.3 metrics...",
-    "Finalizing Compliance Ledger...",
-  ], []);
-
-  // Apply the same custom telemetry hook strategy as the Dashboard
-  const { startTelemetry, stopTelemetry } = useAuditorTelemetryManager(activeProcessRef, setNeuralLog, pipelineSteps);
-
-  useEffect(() => {
-    setMounted(true);
-    activeProcessRef.current = true;
-    return () => {
-      activeProcessRef.current = false;
-      stopTelemetry();
-    };
-  }, [stopTelemetry]);
-
-  useEffect(() => {
-    if (logEndRef.current && status === "auditing") {
-      logEndRef.current.scrollIntoView({ behavior: "smooth" });
-    }
-  }, [neuralLog, status]);
-
-  // LINTER FIX (S3776): Flattened execution flow with strict guard clauses
-  const handleAudit = useCallback(async (e: React.MouseEvent<HTMLButtonElement>) => {
-    e.preventDefault();
-    if (!file) return;
-
-    setStatus("auditing");
-    setError(null);
-    setMetrics(null);
-    setNeuralLog([]);
-    activeProcessRef.current = true;
-
-    stopTelemetry();
-    startTelemetry();
-
-    const formData = new FormData();
-    formData.append("file", file);
-    Object.entries(config).forEach(([key, val]) => formData.append(key, val));
-
-    try {
-      const res = await fetch(`${API_BASE_URL}/api/data/audit-csv`, {
-        method: "POST",
-        body: formData,
-      });
-
-      if (!activeProcessRef.current) return;
-
-      if (!res.ok) {
-        const errData = await res.json().catch(() => ({}));
-        throw new TypeError(errData.detail || "Tabular pipeline processing failure."); // S7786 Fix
-      }
-
-      const data: AuditMetrics = await res.json();
-      if (activeProcessRef.current) {
-        setMetrics(data);
-        setStatus("success");
-      }
-    } catch (err: unknown) {
-      if (!activeProcessRef.current) return;
-      const errorMessage = err instanceof Error ? err.message : "Network synchronization failure.";
-      setError(errorMessage);
-      setStatus("error");
-      console.error("[Nyaya AI Core] - Audit Execution Failure:", err);
-    } finally {
-      if (activeProcessRef.current) {
-        stopTelemetry();
-      }
-    }
-  }, [file, config, startTelemetry, stopTelemetry]);
-
-  const handleRemediate = useCallback(async (e: React.MouseEvent<HTMLButtonElement>) => {
-    e.preventDefault();
-    if (!file || !metrics) return;
-    setStatus("remediating");
-    setError(null);
-    
-    const formData = new FormData();
-    formData.append("file", file);
-    Object.entries(config).forEach(([key, val]) => formData.append(key, val));
-
-    try {
-      const res = await fetch(`${API_BASE_URL}/api/remediate/fix-dataset`, {
-        method: "POST",
-        body: formData,
-      });
-
-      if (!res.ok) {
-        const errData = await res.json().catch(() => ({}));
-        throw new TypeError(errData.detail || "Remediation core failure."); // S7786 Fix
-      }
-
-      const blob = await res.blob();
-      const url = globalThis.URL.createObjectURL(blob);
-      const link = document.createElement('a');
-      link.href = url;
-      link.setAttribute('download', `NYAYA_BALANCED_${file.name}`);
-      document.body.appendChild(link);
-      link.click();
-      link.remove();
-      globalThis.URL.revokeObjectURL(url); 
-      
-      setStatus("success");
-    } catch (err: unknown) {
-      const errorMessage = err instanceof Error ? err.message : "Strategic remediation failed.";
-      setError(`Remediation Error: ${errorMessage}`);
-      setStatus("error");
-      console.error("[Nyaya AI Core] - Remediation Execution Failure:", err);
-    }
-  }, [file, config, metrics]);
+  const {
+    mounted, file, setFile, status, metrics, error, neuralLog, config, setConfig,
+    logEndRef, handleAudit, handleRemediate
+  } = useAuditorLogic();
 
   if (!mounted) return <div className="h-full bg-transparent" aria-hidden="true" />;
 
@@ -523,7 +534,6 @@ export default function DatasetAuditor() {
           
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6 lg:gap-8 shrink-0 w-full">
             
-            {/* LINTER FIX: Perfectly centered Flex-Col Impact Ratio Card to stop clipping */}
             <div className="rounded-[32px] border border-white/10 bg-black/40 p-8 flex flex-col h-full min-h-[300px] relative overflow-hidden group shadow-2xl transition-all hover:border-white/20 transform-gpu">
               
               {/* Header Area */}
@@ -534,7 +544,7 @@ export default function DatasetAuditor() {
                 </span>
               </div>
 
-              {/* Central Content Area (Fixes text bounds/centering) */}
+              {/* Central Content Area */}
               <div className="flex-1 flex flex-col items-center justify-center gap-6 py-4 w-full">
                 <div className="relative flex justify-center w-full">
                    <div className={cn(
