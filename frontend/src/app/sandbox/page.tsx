@@ -6,15 +6,15 @@
  * ==========================================================================
  * Build: 8-BIT AVENGERS ULTIMATE COMPETITION MASTER
  * Target: Real-time Multi-Layer Perceptron XAI Perturbation Simulator
- * * FINAL OPTIMIZATIONS APPLIED:
+ * * CORE ENHANCEMENTS APPLIED:
  * 1. Geometry Clipping Fixed: Recalculated the central scoreboard grid flex boundaries.
  * 2. React.memo() Isolation: Decoupled ServerSafeClock to prevent 1s render loops.
  * 3. Button Safety: Enforced type="button" to prevent phantom form submissions.
  * 4. Memory-Safe Cleanups: Strict Abort patterns for active simulation intervals.
  * 5. Tabular-nums: Applied to log timestamps and score deltas to prevent UI jitter.
  * 6. Explicit DevTools Binding: Added displayName for precise React profiling.
- * 7. OPTIONAL CHAINING FIX: Bulletproofed the map function to prevent 'undefined' crashes.
- * 8. 🚨 LINTER FINALE: Removed zero-fractions, swapped to globalThis, extracted nested ternaries.
+ * 7. LINTER FINALE: Removed zero-fractions, swapped to globalThis, extracted nested ternaries.
+ * 8. 🚨 ULTIMATE COMPLIANCE: Upgraded Telemetry array keys (S6479) and implemented strict Optional Chaining (S6582) to eliminate the final SonarQube warnings.
  * ==========================================================================
  */
 
@@ -38,8 +38,14 @@ import {
 } from "lucide-react";
 import { cn } from "@/lib/utils"; 
 
+// --- STRICT TYPING ---
+interface TelemetryLog {
+  id: string;
+  text: string;
+  timestamp: string;
+}
+
 // --- PERFORMANCE OPTIMIZATION: ISOLATED CLOCK ---
-// Memoized to prevent 1000ms state updates from re-rendering the heavy parent layout
 const ServerSafeClock = memo(function ServerSafeClock() {
   const [time, setTime] = useState("--:--:-- UTC");
   
@@ -71,10 +77,9 @@ export default function CounterfactualSandbox() {
   
   const [loading, setLoading] = useState(false);
   const [hasSimulated, setHasSimulated] = useState(false);
-  const [neuralLog, setNeuralLog] = useState<string[]>([]);
+  const [neuralLog, setNeuralLog] = useState<TelemetryLog[]>([]);
 
   // Simulation Mathematics (In production, driven by FastAPI Engine)
-  // LINTER FIX: Removed .0 zero-fractions
   const originalScore = 85;
   const simulatedScore = hasSimulated ? 42.4 : 85;
   const delta = (simulatedScore - originalScore).toFixed(1);
@@ -82,6 +87,7 @@ export default function CounterfactualSandbox() {
   // Strict DOM & Memory Refs
   const logEndRef = useRef<HTMLDivElement>(null);
   const activeSimRef = useRef<boolean>(false);
+  const telemetryIntervalRef = useRef<NodeJS.Timeout | null>(null);
 
   // 1. HYDRATION ANCHOR
   useEffect(() => {
@@ -100,6 +106,7 @@ export default function CounterfactualSandbox() {
     activeSimRef.current = true;
     return () => {
       activeSimRef.current = false;
+      if (telemetryIntervalRef.current) clearInterval(telemetryIntervalRef.current);
     };
   }, []);
 
@@ -110,7 +117,6 @@ export default function CounterfactualSandbox() {
         if (!loading) handleSimulate();
       }
     };
-    // LINTER FIX: globalThis replaces window
     globalThis.addEventListener('keydown', handleKeyDown);
     return () => globalThis.removeEventListener('keydown', handleKeyDown);
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -135,19 +141,29 @@ export default function CounterfactualSandbox() {
     setHasSimulated(false);
     setNeuralLog([]);
     
+    if (telemetryIntervalRef.current) clearInterval(telemetryIntervalRef.current);
+    
     let msgIndex = 0;
-    const logInterval = setInterval(() => {
+    telemetryIntervalRef.current = setInterval(() => {
       if (!activeSimRef.current) {
-        clearInterval(logInterval);
+        if (telemetryIntervalRef.current) clearInterval(telemetryIntervalRef.current);
         return;
       }
 
       if (msgIndex < simulationLogs.length) {
         const nextMessage = simulationLogs[msgIndex] || "";
-        setNeuralLog(prev => [...prev, nextMessage]);
+        const timeNow = new Date().toLocaleTimeString('en-US', { hour12: false, hour: '2-digit', minute: '2-digit', second: '2-digit' });
+        
+        // LINTER FIX (S6479): Upgrade string arrays to Object UUIDs
+        setNeuralLog(prev => [...prev, { 
+          id: `sim-log-${Date.now()}-${msgIndex}`, 
+          text: nextMessage, 
+          timestamp: timeNow 
+        }]);
+        
         msgIndex++;
       } else {
-        clearInterval(logInterval);
+        if (telemetryIntervalRef.current) clearInterval(telemetryIntervalRef.current);
         if (activeSimRef.current) {
           setLoading(false);
           setHasSimulated(true);
@@ -164,7 +180,6 @@ export default function CounterfactualSandbox() {
     { key: "experience", label: "Experience Level", icon: Briefcase, ph: "e.g., 10 Years" },
   ], []);
 
-  // LINTER FIX: Extracted nested ternary for Arrow icon styles
   const getArrowStyle = () => {
     if (loading) return "text-indigo-500 animate-pulse translate-x-2 md:translate-x-4";
     if (hasSimulated) return "text-red-500";
@@ -310,7 +325,6 @@ export default function CounterfactualSandbox() {
                      </div>
                    </div>
                  )}
-                 {/* LINTER FIX: Arrow logic extracted to function */}
                  <ArrowRight className={cn(
                    "w-6 h-6 md:w-12 md:h-12 transition-all duration-1000 transform-gpu",
                    getArrowStyle()
@@ -351,10 +365,13 @@ export default function CounterfactualSandbox() {
               
               {/* Telemetry Log Auto-Scroller */}
               <div className="flex-1 font-mono text-[9.5px] md:text-[10.5px] leading-relaxed space-y-4 overflow-y-auto custom-scrollbar pr-2 min-h-0 relative z-10" aria-live="polite">
-                {/* LINTER FIX: Replaced bare index key with unique string mapping */}
-                {neuralLog.filter(Boolean).map((log, index) => (
-                  <div key={`telemetry-log-${index}`} className={cn("opacity-90 animate-in fade-in slide-in-from-left-4 duration-300 break-words tabular-nums transform-gpu", log?.includes(profile.zip || '') ? "text-red-400 font-bold border-l-2 border-red-500/40 pl-3" : "text-indigo-400")}>
-                    <span className="text-slate-600">[{new Date().toLocaleTimeString([], { hour12: false, minute: '2-digit', second: '2-digit' })}]</span> {log}
+                {/* LINTER FIX (S6582): Optional Chaining ? applied safely to text includes check */}
+                {neuralLog.map((log) => (
+                  <div key={log.id} className={cn(
+                    "opacity-90 animate-in fade-in slide-in-from-left-4 duration-300 break-words tabular-nums transform-gpu", 
+                    log.text?.includes(profile.zip) ? "text-red-400 font-bold border-l-2 border-red-500/40 pl-3" : "text-indigo-400"
+                  )}>
+                    <span className="text-slate-600 select-none" aria-hidden="true">[{log.timestamp}]</span> {log.text}
                   </div>
                 ))}
                 {!loading && !hasSimulated && <div className="text-slate-800 italic pl-3 border-l border-white/5 py-1.5">Awaiting perturbation trigger...</div>}
