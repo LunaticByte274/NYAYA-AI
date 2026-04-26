@@ -2,7 +2,6 @@
 
 import React, { useState, useEffect, useCallback, useMemo, memo } from "react";
 import { 
-  Key, 
   Copy, 
   Check, 
   TerminalSquare, 
@@ -34,6 +33,7 @@ import {
  * 6. Extended Forensic CI/CD Terminal with GPU-accelerated syntax highlighting.
  * 7. Button Safety: Enforced type="button" across all interactive elements.
  * 8. Explicit DevTools Binding: Added displayName for precise React profiling.
+ * 9. 🚨 ULTIMATE COMPLIANCE: Eliminated unused imports (S1128), upgraded window to globalThis (S7764), and fixed conflicting A11y properties (S6825/S6845).
  * ==========================================================================
  */
 
@@ -102,9 +102,10 @@ export default function DeveloperPage() {
   }, [envMode]);
 
   // 3. ATOMIC CLIPBOARD HANDLER
+  // LINTER FIX (S7764): Upgraded `window` to `globalThis` for Next.js SSR compliance
   const performCopy = useCallback((text: string, label: CopyState) => {
-    if (typeof window === "undefined" || !navigator.clipboard) return;
-    navigator.clipboard.writeText(text).then(() => {
+    if (typeof globalThis === "undefined" || !globalThis.navigator?.clipboard) return;
+    globalThis.navigator.clipboard.writeText(text).then(() => {
       setCopyFeedback(label);
       setTimeout(() => setCopyFeedback(null), 2000);
     });
@@ -347,8 +348,8 @@ jobs:
                  {/* A11y: Raw string for screen readers */}
                  <span className="sr-only">{workflowYAML}</span>
                  
-                 {/* Pre-Tokenized Visual Syntax */}
-                 <pre aria-hidden="true" tabIndex={0} className="text-[12px] md:text-[14px] font-mono leading-relaxed md:leading-[1.8] text-slate-400 whitespace-pre-wrap break-words tabular-nums focus:outline-none focus-visible:ring-2 focus-visible:ring-indigo-500/50 rounded-lg">
+                 {/* LINTER FIX (S6825 & S6845): Removed conflicting tabIndex when aria-hidden is true */}
+                 <pre aria-hidden="true" className="text-[12px] md:text-[14px] font-mono leading-relaxed md:leading-[1.8] text-slate-400 whitespace-pre-wrap break-words tabular-nums rounded-lg">
                     <span className="text-pink-500 italic">name:</span> Nyaya Bias Audit{'\n'}
                     <span className="text-pink-500 italic">on:</span> [pull_request]{'\n\n'}
                     <span className="text-pink-500 italic">jobs:</span>{'\n'}
