@@ -19,7 +19,8 @@ import { UploadCloud, FileCheck, AlertCircle, FileType } from "lucide-react";
  * 7. Tabular-nums: Applied to file size calculation to prevent layout jitter.
  * 8. Deep Accessibility (A11y): Fully keyboard navigable with proper ARIA roles.
  * 9. Explicit DevTools Binding: Added displayName for precise profiling.
- * 10. 🚨 LINTER FINALE: Extracted nested ternaries and upgraded to Number.parseFloat.
+ * 10. LINTER FINALE: Extracted nested ternaries and upgraded to Number.parseFloat.
+ * 11. 🚨 ULTIMATE COMPLIANCE (S6819): Upgraded non-semantic role="button" <div> to a strict <button type="button">. Extracted the hidden <input> to a sibling level to enforce strict HTML5 nesting validation.
  * ==========================================================================
  */
 
@@ -163,32 +164,36 @@ export const DragDropZone = memo(function DragDropZone({
 
   return (
     <div className="w-full flex flex-col gap-3 md:gap-4 min-h-0 shrink-0 flex-1">
-      <div 
+      
+      {/* LINTER FIX (S6819 & HTML5 Validity): 
+        Hidden Secure File Input is now a sibling to the button. 
+        Placing an input inside a button violates HTML specs and A11y rules. 
+      */}
+      <input 
+        type="file" 
+        accept={accept} 
+        ref={inputRef}
+        onChange={handleChange} 
+        className="hidden" 
+        aria-hidden="true"
+        tabIndex={-1}
+      />
+
+      {/* LINTER FIX (S6819): Upgraded to semantic button element */}
+      <button 
+        type="button"
         onClick={handleClick}
         onKeyDown={handleKeyDown}
         onDragEnter={handleDragEnter} 
         onDragLeave={handleDragLeave} 
         onDragOver={handleDragOver} 
         onDrop={handleDrop}
-        role="button"
-        tabIndex={0}
         aria-label={`Upload ${accept} file. Maximum size ${MAX_FILE_SIZE_MB} megabytes.`}
         className={cn(
           "relative w-full flex-1 min-h-[130px] sm:min-h-[160px] xl:min-h-[190px] rounded-[24px] md:rounded-[32px] border-2 border-dashed flex flex-col items-center justify-center transition-all duration-500 cursor-pointer overflow-hidden group focus:outline-none focus-visible:ring-2 focus-visible:ring-indigo-500/50 transform-gpu will-change-transform",
           getZoneStyle()
         )}
       >
-        {/* Hidden Secure File Input - A11y locked */}
-        <input 
-          type="file" 
-          accept={accept} 
-          ref={inputRef}
-          onChange={handleChange} 
-          className="hidden" 
-          aria-hidden="true"
-          tabIndex={-1}
-        />
-        
         {/* Ambient Drag Glow Overlay */}
         <div className={cn(
           "absolute inset-0 bg-gradient-to-b from-transparent to-black/50 pointer-events-none transition-opacity duration-500 transform-gpu",
@@ -231,7 +236,7 @@ export const DragDropZone = memo(function DragDropZone({
             </div>
           )}
         </div>
-      </div>
+      </button>
 
       {/* Local Strict Validation Error Banner */}
       {localError && (
